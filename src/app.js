@@ -91,14 +91,12 @@ const screenSession   = document.getElementById("screenSession");
 const screenAnalyzing = document.getElementById("screenAnalyzing");
 const screenResults   = document.getElementById("screenResults");
 const screenDashboard = document.getElementById("screenDashboard");
-const screenHistory   = document.getElementById("screenHistory");
 
 const bottomNav   = document.getElementById("bottomNav");
 const bnavAnalyze = document.getElementById("bnavAnalyze");
 const bnavStats   = document.getElementById("bnavStats");
-const bnavHistory = document.getElementById("bnavHistory");
+const bnavSettings = document.getElementById("bnavSettings");
 
-const settingsGear    = document.getElementById("settingsGear");
 const settingsOverlay = document.getElementById("settingsOverlay");
 const settingsClose   = document.getElementById("settingsClose");
 
@@ -228,7 +226,6 @@ const histClearBtn = document.getElementById("histClearBtn");
 const pillElements = [
   { dot: document.getElementById("profilePillHeroDot"),  name: document.getElementById("profilePillHeroName"),  btn: document.getElementById("profilePillHero")  },
   { dot: document.getElementById("profilePillDashDot"),  name: document.getElementById("profilePillDashName"),  btn: document.getElementById("profilePillDash")  },
-  { dot: document.getElementById("profilePillHistDot"),  name: document.getElementById("profilePillHistName"),  btn: document.getElementById("profilePillHist")  },
 ];
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
@@ -292,11 +289,33 @@ function updateHeroSub() {
   heroSub.textContent = `Record ${t} break${t !== 1 ? "s" : ""} for your most accurate reading`;
 }
 
-settingsGear.addEventListener("click",  () => { settingsOverlay.hidden = false; });
-settingsClose.addEventListener("click", () => { settingsOverlay.hidden = true;  });
-settingsOverlay.addEventListener("click", e => {
-  if (e.target === settingsOverlay) settingsOverlay.hidden = true;
+settingsClose.addEventListener("click", () => {
+  settingsOverlay.hidden = true;
+  bnavSettings.classList.toggle("active", false);
 });
+settingsOverlay.addEventListener("click", e => {
+  if (e.target === settingsOverlay) {
+    settingsOverlay.hidden = true;
+    bnavSettings.classList.toggle("active", false);
+  }
+});
+
+// History accordion inside settings
+const histAccordionBtn  = document.getElementById("histAccordionBtn");
+const histAccordionBody = document.getElementById("histAccordionBody");
+const histAccordionArrow = document.getElementById("histAccordionArrow");
+let histAccordionLoaded = false;
+if (histAccordionBtn) {
+  histAccordionBtn.addEventListener("click", () => {
+    const open = !histAccordionBody.hidden;
+    histAccordionBody.hidden = open;
+    histAccordionArrow.textContent = open ? "▼" : "▲";
+    if (!open && !histAccordionLoaded) {
+      histAccordionLoaded = true;
+      loadHistory();
+    }
+  });
+}
 
 // ─── Delete All Data ──────────────────────────────────────────────────────────
 document.getElementById("deleteAllDataBtn")?.addEventListener("click", async () => {
@@ -322,16 +341,15 @@ document.getElementById("deleteAllDataBtn")?.addEventListener("click", async () 
 });
 
 // ─── Screen switching ─────────────────────────────────────────────────────────
-const NAV_SCREENS = new Set([screenHero, screenResults, screenDashboard, screenHistory]);
+const NAV_SCREENS = new Set([screenHero, screenResults, screenDashboard]);
 
 function showScreen(screen) {
-  [screenHero, screenSession, screenAnalyzing, screenResults, screenDashboard, screenHistory]
+  [screenHero, screenSession, screenAnalyzing, screenResults, screenDashboard]
     .forEach(s => { if (s) s.hidden = s !== screen; });
   const showNav = NAV_SCREENS.has(screen);
   if (bottomNav) bottomNav.hidden = !showNav;
   if (screen === screenHero || screen === screenResults) setActiveTab("analyze");
   else if (screen === screenDashboard) setActiveTab("stats");
-  else if (screen === screenHistory)   setActiveTab("history");
   const adsAllowedOnScreen = screen !== screenAnalyzing && screen !== screenResults;
   window.Android?.setAdVisible(adsAllowedOnScreen);
 }
@@ -339,12 +357,15 @@ function showScreen(screen) {
 function setActiveTab(tab) {
   bnavAnalyze.classList.toggle("active", tab === "analyze");
   bnavStats.classList.toggle("active",   tab === "stats");
-  bnavHistory.classList.toggle("active", tab === "history");
+  bnavSettings.classList.toggle("active", false);
 }
 
 bnavAnalyze.addEventListener("click", () => showScreen(screenHero));
 bnavStats.addEventListener("click",   () => { showScreen(screenDashboard); loadDashboard(); });
-bnavHistory.addEventListener("click", () => { showScreen(screenHistory); loadHistory(); });
+bnavSettings.addEventListener("click", () => {
+  settingsOverlay.hidden = false;
+  bnavSettings.classList.toggle("active", true);
+});
 
 // ─── Profile pills ─────────────────────────────────────────────────────────────
 function updateProfilePills() {
@@ -506,6 +527,12 @@ function setActiveProfile(profile) {
   saveActiveProfileId(profile?.id || null);
   updateProfilePills();
   loadSetupFromProfile();
+  if (histAccordionBody && !histAccordionBody.hidden) {
+    histAccordionLoaded = true;
+    loadHistory();
+  } else {
+    histAccordionLoaded = false;
+  }
 }
 
 // ─── Load profiles on startup ─────────────────────────────────────────────────
