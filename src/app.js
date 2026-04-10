@@ -1693,7 +1693,7 @@ function initBreakSetup() {
 
 // ─── How It Works Onboarding ──────────────────────────────────────────────────
 const HIW_STORAGE_KEY = "bsa_hiw_done";
-const HIW_TOTAL_STEPS = 5;
+const HIW_TOTAL_STEPS = 6;
 
 const hiwOverlay     = document.getElementById("hiwOverlay");
 const hiwDotEls      = document.querySelectorAll("#hiwDots .hiw-dot");
