@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Privacy Policy — Break Speed Coach</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #070a10; --surface: #0f1420; --surface2: #161c2e;
+      --border: #1e2840; --border2: #263050;
+      --text: #e8eef8; --text-dim: #8fa3be; --accent: #00d4ff;
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 15px; line-height: 1.7; padding: 0;
+    }
+    .page-wrap { max-width: 680px; margin: 0 auto; padding: 32px 20px 60px; }
+    header { display: flex; align-items: center; gap: 14px; margin-bottom: 36px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      text-decoration: none; color: var(--accent); font-size: 14px; font-weight: 600;
+    }
+    .back-btn:hover { opacity: 0.8; }
+    .header-inner { flex: 1; }
+    .app-name { font-size: 13px; color: var(--text-dim); letter-spacing: .04em; text-transform: uppercase; }
+    h1 { font-size: 22px; font-weight: 700; color: var(--text); margin-top: 2px; }
+    .updated { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+    .intro {
+      background: var(--surface2); border: 1px solid var(--border2);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 10px 10px 0; padding: 14px 16px;
+      font-size: 14px; color: var(--text-dim); margin-bottom: 32px;
+    }
+    section { margin-bottom: 32px; }
+    h2 {
+      font-size: 16px; font-weight: 700; color: var(--accent);
+      margin-bottom: 10px; padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+    p { color: var(--text-dim); margin-bottom: 10px; }
+    p:last-child { margin-bottom: 0; }
+    p strong { color: var(--text); }
+    ul { list-style: none; padding: 0; margin-bottom: 10px; }
+    ul li { color: var(--text-dim); padding: 4px 0 4px 18px; position: relative; }
+    ul li::before { content: "›"; color: var(--accent); position: absolute; left: 0; font-size: 16px; line-height: 1.4; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    footer { border-top: 1px solid var(--border); padding-top: 20px; margin-top: 40px; font-size: 13px; color: var(--text-dim); text-align: center; }
+    @media (max-width: 480px) { .page-wrap { padding: 20px 16px 48px; } h1 { font-size: 19px; } }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <header>
+    <a class="back-btn" href="javascript:history.back()">← Back</a>
+    <div class="header-inner">
+      <div class="app-name">Break Speed Coach</div>
+      <h1>Privacy Policy</h1>
+      <div class="updated">Last updated: April 2026</div>
+    </div>
+  </header>
+
+  <div class="intro">
+    Break Speed Coach is a performance tool, not a social network. We collect only what's needed to help you track your break speed — nothing else.
+  </div>
+
+  <section>
+    <h2>1. Overview</h2>
+    <p>Break Speed Coach estimates pool break speed from the sound of your break shot. The app records short audio clips through your device microphone, analyzes them to detect impact events, and returns a speed estimate. You can save results to named player profiles to track progress over time.</p>
+  </section>
+
+  <section>
+    <h2>2. Data Collected</h2>
+    <ul>
+      <li><strong>Microphone audio</strong> — captured only during a recording session to analyze break speed.</li>
+      <li><strong>Player profile names</strong> — names you create yourself (e.g. "Alex"). No real name required.</li>
+      <li><strong>Break performance data</strong> — estimated speed, confidence tier, session averages, and history.</li>
+      <li><strong>Break setup preferences</strong> — table size, rack configuration, break position (saved per profile).</li>
+    </ul>
+    <p>We do not collect email addresses, phone numbers, location data, or any other personal information.</p>
+  </section>
+
+  <section>
+    <h2>3. How Data Is Used</h2>
+    <ul>
+      <li>To analyze the audio of your break and estimate cue-ball speed.</li>
+      <li>To store your player profiles, break history, and session stats.</li>
+      <li>To display trend charts and session summaries within the app.</li>
+    </ul>
+    <p>Data is never used for advertising, profiling, or any purpose beyond the core app features.</p>
+  </section>
+
+  <section>
+    <h2>4. Audio Handling</h2>
+    <p><strong>Audio is used only for analysis and is not stored after processing.</strong></p>
+    <p>When you record a break, the audio is temporarily held in memory and sent to our analysis server for processing. Once the speed estimate is generated, the audio data is discarded. We do not keep, archive, or re-process your recordings.</p>
+    <p>The microphone is only active while the session screen is open and recording is in progress. It is not listening at any other time.</p>
+  </section>
+
+  <section>
+    <h2>5. Data Storage</h2>
+    <p>Player profiles and break session history are stored in a server-side database operated by Replit, Inc. Data is tied to the device or browser where the profile was created — there is no cross-device account system at this time.</p>
+    <p>App preferences (theme, units, target attempts) are stored locally in your browser's <code>localStorage</code> and never transmitted to any server.</p>
+  </section>
+
+  <section>
+    <h2>6. Data Sharing</h2>
+    <p><strong>We do not sell, rent, or share your data with third parties.</strong></p>
+    <p>The app runs on infrastructure provided by Replit, Inc. By using the app, data passes through Replit's servers solely for the purpose of delivering the service. No other third parties have access to your data.</p>
+  </section>
+
+  <section>
+    <h2>7. Your Control Over Data</h2>
+    <p>You can delete your data at any time from within the app:</p>
+    <ul>
+      <li><strong>Delete a session</strong> — tap the ✕ on any history card.</li>
+      <li><strong>Clear all history</strong> — available in the History view.</li>
+      <li><strong>Delete a profile</strong> — remove a player from the Players drawer.</li>
+      <li><strong>Delete all data</strong> — available in Settings → Data → Delete All Data.</li>
+    </ul>
+    <p>Deletion is immediate and permanent. Deleted data cannot be recovered.</p>
+  </section>
+
+  <section>
+    <h2>8. Security</h2>
+    <p>Data is transmitted over HTTPS. We rely on Replit's infrastructure security for server-side data protection. We do not store audio recordings, financial data, or sensitive personal information, which significantly limits the risk profile of the service.</p>
+  </section>
+
+  <section>
+    <h2>9. Children's Privacy</h2>
+    <p>Break Speed Coach is not directed at children under 13. We do not knowingly collect data from children under 13. If you believe a child has provided us with personal information, please contact us and we will delete it.</p>
+  </section>
+
+  <section>
+    <h2>10. Changes to This Policy</h2>
+    <p>If we make material changes to this Privacy Policy, we will update the date at the top of this page. Continued use of the app after changes constitutes acceptance of the revised policy.</p>
+  </section>
+
+  <section>
+    <h2>11. Contact</h2>
+    <p>Questions about this policy? Reach us at:</p>
+    <p><a href="mailto:info@promethean-games.com">info@promethean-games.com</a></p>
+  </section>
+
+  <footer>
+    &copy; 2026 Promethean Games · Break Speed Coach · <a href="/terms.html">Terms of Use</a>
+  </footer>
+
+</div>
+</body>
+</html>
