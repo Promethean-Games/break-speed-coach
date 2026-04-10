@@ -27,9 +27,6 @@
 <body>
 <div class="app" id="app">
 
-  <!-- Fixed gear icon (all screens) -->
-  <button class="gear-btn" id="settingsGear" title="Settings">⚙</button>
-
   <!-- Settings drawer -->
   <div class="settings-overlay" id="settingsOverlay" hidden>
     <div class="settings-panel" id="settingsPanel">
@@ -102,6 +99,31 @@
       <a class="settings-link-row" href="/terms.html" target="_blank" rel="noopener">
         Terms of Use<span class="settings-link-arrow">↗</span>
       </a>
+
+      <div class="settings-divider"></div>
+      <div class="settings-section-hdr">History</div>
+      <button class="settings-accordion-toggle" id="histAccordionBtn">
+        <span>Session History</span>
+        <span class="settings-accordion-arrow" id="histAccordionArrow">▼</span>
+      </button>
+      <div class="settings-accordion-body" id="histAccordionBody" hidden>
+        <div class="hist-toolbar">
+          <div class="hist-filters" id="histFilters">
+            <button class="hist-filter active" data-filter="all">All</button>
+            <button class="hist-filter" data-filter="high">HIGH</button>
+            <button class="hist-filter" data-filter="near_high">NEAR-HIGH</button>
+            <button class="hist-filter" data-filter="medium">MEDIUM</button>
+            <button class="hist-filter" data-filter="low">LOW</button>
+          </div>
+          <button class="hist-clear-btn" id="histClearBtn" title="Clear all history">✕ Clear</button>
+        </div>
+        <div class="hist-list" id="histList">
+          <div class="hist-empty" id="histEmpty" hidden>
+            <div class="hist-empty-icon">≡</div>
+            <div class="hist-empty-msg">No sessions yet.<br>Your break history will appear here.</div>
+          </div>
+        </div>
+      </div>
 
       <div class="settings-divider"></div>
       <div class="settings-section-hdr settings-section-hdr-danger">Data</div>
@@ -842,36 +864,6 @@
     </div><!-- /dash-body -->
   </div><!-- /screenDashboard -->
 
-  <!-- ════════════════════════════════════════════ HISTORY ══ -->
-  <div class="screen screen-has-nav" id="screenHistory" hidden>
-
-    <div class="screen-topbar">
-      <button class="profile-pill" id="profilePillHist">
-        <span class="profile-pill-dot" id="profilePillHistDot"></span>
-        <span class="profile-pill-name" id="profilePillHistName">Loading…</span>
-        <span class="profile-pill-caret">▾</span>
-      </button>
-    </div>
-
-    <div class="hist-toolbar">
-      <div class="hist-filters" id="histFilters">
-        <button class="hist-filter active" data-filter="all">All</button>
-        <button class="hist-filter" data-filter="high">HIGH</button>
-        <button class="hist-filter" data-filter="near_high">NEAR-HIGH</button>
-        <button class="hist-filter" data-filter="medium">MEDIUM</button>
-        <button class="hist-filter" data-filter="low">LOW</button>
-      </div>
-      <button class="hist-clear-btn" id="histClearBtn" title="Clear all history">✕ Clear</button>
-    </div>
-
-    <div class="hist-list" id="histList">
-      <div class="hist-empty" id="histEmpty" hidden>
-        <div class="hist-empty-icon">≡</div>
-        <div class="hist-empty-msg">No sessions yet.<br>Your break history will appear here.</div>
-      </div>
-    </div>
-  </div>
-
   <!-- ════════════════════════════════════════════ OUTCOME TAG SHEET ══ -->
   <!-- Slides up after a successful break analysis to capture break outcomes. -->
   <div class="tag-overlay" id="tagOverlay" hidden role="dialog" aria-modal="true" aria-label="Tag this break">
@@ -908,9 +900,9 @@
       <span class="bnav-icon">★</span>
       <span class="bnav-lbl">Stats</span>
     </button>
-    <button class="bnav-btn" id="bnavHistory">
-      <span class="bnav-icon">≡</span>
-      <span class="bnav-lbl">History</span>
+    <button class="bnav-btn" id="bnavSettings">
+      <span class="bnav-icon">⚙</span>
+      <span class="bnav-lbl">Settings</span>
     </button>
   </nav>
 
