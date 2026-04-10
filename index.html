@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <title>Break Speed Coach</title>
+  <title>Break Session Analyzer</title>
   <meta name="description" content="Measure the speed of your pool break shot using your phone's microphone. Record up to 5 attempts for a high-confidence reading." />
 
   <!-- PWA / TWA -->
@@ -16,13 +16,21 @@
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
 
   <!-- Open Graph -->
-  <meta property="og:title" content="Break Speed Coach" />
+  <meta property="og:title" content="Break Session Analyzer" />
   <meta property="og:description" content="Measure the speed of your pool break shot." />
   <meta property="og:image" content="/opengraph.jpg" />
   <meta property="og:type" content="website" />
 
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () =>
+        navigator.serviceWorker.register("/sw.js").catch(() => {})
+      );
+    }
+  </script>
 </head>
 <body>
 <div class="app" id="app">
@@ -33,6 +41,15 @@
       <div class="settings-header">
         <span class="settings-title">Settings</span>
         <button class="settings-close" id="settingsClose">✕</button>
+      </div>
+
+      <!-- Pro subscription status -->
+      <div class="settings-section settings-pro-row" id="settingsProRow">
+        <div class="settings-pro-left">
+          <span class="settings-pro-icon" id="settingsProIcon">◎</span>
+          <span class="settings-pro-lbl" id="settingsProLbl">Free Plan</span>
+        </div>
+        <button class="settings-pro-btn" id="settingsProBtn">Upgrade to Pro</button>
       </div>
 
       <div class="settings-section">
@@ -767,6 +784,25 @@
 
       </div><!-- /coaching-section -->
 
+      <!-- Pro preview — Coaching Insights (shown to free users when data exists) -->
+      <div class="pro-preview-card" id="proCoachPreview" hidden>
+        <div class="pro-preview-blur" aria-hidden="true">
+          <div class="pro-ghost-bar" style="width:55%;height:28px;margin-bottom:10px"></div>
+          <div class="pro-ghost-row">
+            <div class="pro-ghost-bar" style="width:44%;height:52px"></div>
+            <div class="pro-ghost-bar" style="width:44%;height:52px"></div>
+          </div>
+          <div class="pro-ghost-bar" style="width:100%;height:36px;margin-top:10px"></div>
+        </div>
+        <div class="pro-preview-overlay">
+          <span class="pro-lock-icon">🔒</span>
+          <span class="pro-badge-pill">PRO</span>
+          <div class="pro-preview-title">Coaching Insights</div>
+          <div class="pro-preview-desc">Your benchmark, training zone, and per-break feedback — so you know exactly where you stand.</div>
+          <button class="pro-unlock-btn" data-feature="coaching">Unlock Pro</button>
+        </div>
+      </div>
+
       <!-- Section header above raw stats -->
       <div class="dash-section-hdr" id="dashSectionHdr" hidden>Details</div>
 
@@ -835,23 +871,85 @@
           <p class="trend-caption">mph across recorded attempts</p>
         </div>
 
-        <!-- Consistency chart -->
-        <div class="trend-card">
-          <div class="trend-card-hdr">
-            <span class="trend-card-title">Consistency</span>
-            <div class="tr-btn-group" id="consistRollingBtns">
-              <button class="tr-btn active" data-rolling="off">Raw</button>
-              <button class="tr-btn" data-rolling="on">Smoothed</button>
+        <!-- Consistency chart — Pro feature -->
+        <div class="pro-trend-gate" id="proConsistGate">
+          <!-- Actual chart (visible to Pro users) -->
+          <div class="trend-card" id="consistChartCard">
+            <div class="trend-card-hdr">
+              <span class="trend-card-title">Consistency</span>
+              <div class="tr-btn-group" id="consistRollingBtns">
+                <button class="tr-btn active" data-rolling="off">Raw</button>
+                <button class="tr-btn" data-rolling="on">Smoothed</button>
+              </div>
+            </div>
+            <div class="trend-chart-wrap">
+              <canvas id="consistChart"></canvas>
+            </div>
+            <div class="trend-empty" id="consistEmpty" hidden>Consistency appears after sessions with multiple valid breaks.</div>
+            <p class="trend-caption">σ mph per session · lower spread = more repeatable</p>
+          </div>
+          <!-- Preview card (visible to free users) -->
+          <div class="pro-preview-card pro-preview-card--inline" id="proConsistPreview" hidden>
+            <div class="pro-preview-blur" aria-hidden="true">
+              <div class="pro-ghost-bar" style="width:100%;height:80px"></div>
+              <div class="pro-ghost-bar" style="width:60%;height:10px;margin-top:8px"></div>
+            </div>
+            <div class="pro-preview-overlay">
+              <span class="pro-lock-icon">🔒</span>
+              <span class="pro-badge-pill">PRO</span>
+              <div class="pro-preview-title">Consistency Chart</div>
+              <div class="pro-preview-desc">Track your shot-to-shot variance over time and see if your breaks are getting tighter.</div>
+              <button class="pro-unlock-btn" data-feature="consistency">Unlock Pro</button>
             </div>
           </div>
-          <div class="trend-chart-wrap">
-            <canvas id="consistChart"></canvas>
-          </div>
-          <div class="trend-empty" id="consistEmpty" hidden>Consistency appears after sessions with multiple valid breaks.</div>
-          <p class="trend-caption">σ mph per session · lower spread = more repeatable</p>
         </div>
 
       </div><!-- /trends-section -->
+
+      <!-- Pro preview cards — always visible in Stats when profile is loaded -->
+      <div class="pro-extras-section" id="proExtrasSection" hidden>
+
+        <!-- Challenge Mode -->
+        <div class="pro-preview-card pro-preview-card--extra">
+          <div class="pro-preview-blur" aria-hidden="true">
+            <div class="pro-ghost-bar" style="width:45%;height:14px;margin-bottom:8px"></div>
+            <div class="pro-ghost-row">
+              <div class="pro-ghost-pill"></div>
+              <div class="pro-ghost-pill"></div>
+              <div class="pro-ghost-pill"></div>
+            </div>
+            <div class="pro-ghost-bar" style="width:70%;height:10px;margin-top:10px"></div>
+          </div>
+          <div class="pro-preview-overlay">
+            <span class="pro-lock-icon">⚡</span>
+            <span class="pro-badge-pill">PRO</span>
+            <div class="pro-preview-title">Challenge Mode</div>
+            <div class="pro-preview-desc">Set a target speed and hit it consistently. Real training, not just tracking.</div>
+            <button class="pro-unlock-btn" data-feature="challenge">Unlock Pro</button>
+          </div>
+        </div>
+
+        <!-- Export & Sharing -->
+        <div class="pro-preview-card pro-preview-card--extra">
+          <div class="pro-preview-blur" aria-hidden="true">
+            <div class="pro-ghost-bar" style="width:65%;height:14px;margin-bottom:8px"></div>
+            <div class="pro-ghost-bar" style="width:40%;height:10px;margin-bottom:8px"></div>
+            <div class="pro-ghost-row">
+              <div class="pro-ghost-bar" style="width:30%;height:28px;border-radius:6px"></div>
+              <div class="pro-ghost-bar" style="width:30%;height:28px;border-radius:6px"></div>
+            </div>
+          </div>
+          <div class="pro-preview-overlay">
+            <span class="pro-lock-icon">↑</span>
+            <span class="pro-badge-pill">PRO</span>
+            <div class="pro-preview-title">Export &amp; Sharing</div>
+            <div class="pro-preview-desc">Download your session data as CSV or share your best breaks with your coach or league.</div>
+            <button class="pro-unlock-btn" data-feature="export">Unlock Pro</button>
+          </div>
+        </div>
+
+      </div><!-- /pro-extras-section -->
+
     </div><!-- /dash-body -->
   </div><!-- /screenDashboard -->
 
@@ -878,6 +976,28 @@
     </div>
   </div>
 
+  <!-- ════════════════════════════════════════════ PRO UPGRADE MODAL ══ -->
+  <div class="pro-modal-overlay" id="proModalOverlay" hidden role="dialog" aria-modal="true" aria-label="Upgrade to Pro">
+    <div class="pro-modal">
+      <button class="pro-modal-close" id="proModalClose" aria-label="Close">✕</button>
+      <div class="pro-modal-badge">PRO</div>
+      <div class="pro-modal-headline">Train like a serious player</div>
+      <div class="pro-modal-feature-lbl" id="proModalFeatureLbl"></div>
+      <ul class="pro-modal-bullets">
+        <li>Unlimited session history</li>
+        <li>Coaching insights &amp; benchmark tracking</li>
+        <li>Consistency scoring &amp; trend analysis</li>
+        <li>Challenge mode &amp; export tools</li>
+      </ul>
+      <div class="pro-modal-price">$4.99 <span>/ month</span></div>
+      <button class="pro-modal-cta" id="proModalCta">
+        <span id="proModalCtaText">Unlock Pro</span>
+        <span class="pro-modal-spinner" id="proModalSpinner" hidden>···</span>
+      </button>
+      <button class="pro-modal-restore" id="proModalRestore">Restore Purchase</button>
+    </div>
+  </div>
+
   <!-- Ad banner placeholder — filled by Android layer when ads are active -->
   <div id="adBanner" class="ad-banner" hidden aria-hidden="true"></div>
 
@@ -898,6 +1018,7 @@
   </nav>
 
 </div>
-<script type="module" src="/src/app.js"></script>
+<script src="/billing.js"></script>
+<script src="/app.js"></script>
 </body>
 </html>
