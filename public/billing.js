@@ -1,12 +1,9 @@
 "use strict";
 
 // ─── Billing Module ───────────────────────────────────────────────────────────
-// Stripe-ready architecture.
-// To wire real Stripe: replace initiateCheckout() body with:
-//   const stripe = Stripe('pk_live_YOUR_KEY');
-//   return stripe.redirectToCheckout({ lineItems: [{ price: 'price_xxx', quantity: 1 }], mode: 'subscription', successUrl: ..., cancelUrl: ... });
-//
-// getSubscriptionStatus() should call your backend to verify server-side.
+// Stripe live integration.
+// Backend routes: POST /api/stripe/checkout, GET /api/stripe/verify
+// Webhook:        POST /api/stripe/webhook  (handled server-side)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BILLING = (() => {
@@ -16,38 +13,51 @@ const BILLING = (() => {
     try { return localStorage.getItem(PRO_KEY) === "true"; } catch { return false; }
   }
 
+  function _setPro(val) {
+    try { localStorage.setItem(PRO_KEY, val ? "true" : "false"); } catch {}
+  }
+
   function getSubscriptionStatus() {
     return isProUser() ? "active" : "free";
   }
 
-  // Mock checkout — replace internals with real Stripe when ready.
+  // Creates a Stripe Checkout Session via the backend and redirects the user.
   async function initiateCheckout() {
-    // ── Real Stripe (uncomment when keys are added): ──────────────────────
-    // const stripe = Stripe("pk_live_...");
-    // return stripe.redirectToCheckout({
-    //   lineItems: [{ price: "price_pro_monthly", quantity: 1 }],
-    //   mode: "subscription",
-    //   successUrl: window.location.origin + "/?pro=success",
-    //   cancelUrl:  window.location.origin + "/?pro=cancel",
-    // });
-    // ─────────────────────────────────────────────────────────────────────
-
-    // Mock: simulate network + payment processing delay
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        try { localStorage.setItem(PRO_KEY, "true"); } catch {}
-        resolve({ success: true });
-      }, 1600);
+    const res = await fetch("/api/stripe/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
     });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Checkout failed" }));
+      throw new Error(err.error || "Checkout failed");
+    }
+
+    const { url } = await res.json();
+    if (!url) throw new Error("No checkout URL returned");
+
+    // Full-page redirect to Stripe Checkout.
+    // On success, Stripe sends back to /?pro=success&session_id=cs_xxx
+    window.location.href = url;
+
+    // Return a promise that never resolves — navigation is taking over.
+    return new Promise(() => {});
   }
 
-  async function restorePurchase() {
-    // ── Real Stripe: call your backend to verify subscription status ──────
-    // const res = await fetch("/api/subscription/status");
-    // const { active } = await res.json();
-    // if (active) localStorage.setItem(PRO_KEY, "true");
-    // ─────────────────────────────────────────────────────────────────────
+  // Verifies a completed checkout session after Stripe redirects back.
+  // Called automatically on page load when ?pro=success is present.
+  async function verifySession(sessionId) {
+    const res = await fetch(`/api/stripe/verify?session_id=${encodeURIComponent(sessionId)}`);
+    if (!res.ok) return { verified: false };
+    const data = await res.json().catch(() => ({ verified: false }));
+    if (data.verified) _setPro(true);
+    return data;
+  }
 
+  // Restore purchase — re-checks if this session has already been verified.
+  // Without a user-auth system, this just checks localStorage.
+  // When you add user accounts, replace this with a real server lookup.
+  async function restorePurchase() {
     const active = isProUser();
     return { restored: active };
   }
@@ -57,5 +67,5 @@ const BILLING = (() => {
     try { localStorage.removeItem(PRO_KEY); } catch {}
   }
 
-  return { isProUser, getSubscriptionStatus, initiateCheckout, restorePurchase, _revoke };
+  return { isProUser, getSubscriptionStatus, initiateCheckout, verifySession, restorePurchase, _setPro, _revoke };
 })();
