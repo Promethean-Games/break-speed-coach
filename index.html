@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Break Speed Coach</title>
+  <meta name="description" content="Measure the speed of your pool break shot using your phone's microphone. Record up to 5 attempts for a high-confidence reading." />
+
+  <!-- PWA / TWA -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#070a10" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Break Coach" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Break Speed Coach" />
+  <meta property="og:description" content="Measure the speed of your pool break shot." />
+  <meta property="og:image" content="/opengraph.jpg" />
+  <meta property="og:type" content="website" />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- Fixed gear icon (all screens) -->
+  <button class="gear-btn" id="settingsGear" title="Settings">⚙</button>
+
+  <!-- Settings drawer -->
+  <div class="settings-overlay" id="settingsOverlay" hidden>
+    <div class="settings-panel" id="settingsPanel">
+      <div class="settings-header">
+        <span class="settings-title">Settings</span>
+        <button class="settings-close" id="settingsClose">✕</button>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-label">Table Size</div>
+        <div class="settings-opts" id="tableSizeOpts">
+          <button class="opt-btn" data-value="7ft">7 ft</button>
+          <button class="opt-btn" data-value="8ft">8 ft</button>
+          <button class="opt-btn" data-value="9ft">9 ft</button>
+          <button class="opt-btn" data-value="10ft">10 ft</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-label">Theme</div>
+        <div class="settings-opts" id="themeOpts">
+          <button class="opt-btn" data-value="dark">Dark</button>
+          <button class="opt-btn" data-value="light">Light</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-label">Speed Units</div>
+        <div class="settings-opts" id="unitsOpts">
+          <button class="opt-btn" data-value="mph">mph</button>
+          <button class="opt-btn" data-value="kph">kph</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-label">Target Attempts</div>
+        <div class="settings-opts" id="targetOpts">
+          <button class="opt-btn" data-value="1">1</button>
+          <button class="opt-btn" data-value="2">2</button>
+          <button class="opt-btn" data-value="3">3</button>
+          <button class="opt-btn" data-value="5">5</button>
+        </div>
+      </div>
+
+      <div class="settings-divider"></div>
+      <button class="settings-hiw-btn" id="settingsHiwBtn">
+        <span class="settings-hiw-icon">?</span>
+        How It Works
+      </button>
+
+      <div class="settings-divider"></div>
+      <div class="settings-section-hdr">Support</div>
+      <!-- Shown when adsRemoved = false -->
+      <button class="settings-link-row" id="settingsUpgradeEntry">
+        Remove Ads<span class="settings-link-arrow">→</span>
+      </button>
+      <!-- Shown when adsRemoved = true -->
+      <div class="settings-adfree-badge" id="settingsAdFreeBadge" hidden>
+        <span class="settings-adfree-check">✓</span> Ad-Free Enabled
+      </div>
+      <button class="settings-link-row settings-link-muted" id="settingsRestoreBtn">
+        Restore Purchase<span class="settings-link-arrow settings-link-arrow-muted">→</span>
+      </button>
+
+      <div class="settings-divider"></div>
+      <div class="settings-section-hdr">Legal</div>
+      <a class="settings-link-row" href="/privacy.html" target="_blank" rel="noopener">
+        Privacy Policy<span class="settings-link-arrow">↗</span>
+      </a>
+      <a class="settings-link-row" href="/terms.html" target="_blank" rel="noopener">
+        Terms of Use<span class="settings-link-arrow">↗</span>
+      </a>
+
+      <div class="settings-divider"></div>
+      <div class="settings-section-hdr settings-section-hdr-danger">Data</div>
+      <button class="settings-danger-row" id="deleteAllDataBtn">Delete All Data…</button>
+    </div>
+  </div>
+
+  <!-- Upgrade / Remove Ads modal -->
+  <div class="upgrade-overlay" id="upgradeOverlay" hidden>
+    <div class="upgrade-box">
+      <button class="upgrade-close" id="upgradeClose">✕</button>
+      <div class="upgrade-icon">⭐</div>
+      <h2 class="upgrade-title">Remove Ads</h2>
+      <ul class="upgrade-perks">
+        <li>Ad-free experience across all screens</li>
+        <li>Uninterrupted break analysis and sessions</li>
+        <li>Support ongoing development of the app</li>
+      </ul>
+      <button class="upgrade-cta" id="upgradeBtn">Upgrade</button>
+      <button class="upgrade-restore" id="upgradeRestoreBtn">Restore Purchase</button>
+    </div>
+  </div>
+
+  <!-- Microphone permission disclosure (shown before first recording) -->
+  <div class="mic-disclosure-overlay" id="micDisclosureOverlay" hidden>
+    <div class="mic-disclosure-box">
+      <div class="mic-disclosure-icon">🎙</div>
+      <h2 class="mic-disclosure-title">Microphone Access</h2>
+      <p class="mic-disclosure-body">This app uses your microphone to capture the sound of your break so it can estimate break speed. Audio is used only for analysis and is <strong>not stored</strong> after processing.</p>
+      <div class="mic-disclosure-actions">
+        <button class="mic-disclosure-cancel" id="micDisclosureCancel">Cancel</button>
+        <button class="mic-disclosure-allow" id="micDisclosureAllow">Allow</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile drawer -->
+  <div class="profile-overlay" id="profileOverlay" hidden>
+    <div class="profile-drawer" id="profileDrawer">
+      <div class="settings-header">
+        <span class="settings-title">Players</span>
+        <button class="settings-close" id="profileDrawerClose">✕</button>
+      </div>
+      <div class="profile-list" id="profileList"></div>
+      <button class="btn-profile-new" id="newProfileBtn">+ Add Player</button>
+    </div>
+  </div>
+
+  <!-- New / Edit profile modal -->
+  <div class="modal-overlay" id="profileModal" hidden>
+    <div class="modal-card">
+      <div class="modal-title" id="profileModalTitle">New Player</div>
+      <input class="modal-input" id="profileModalName" placeholder="Player name" maxlength="30" />
+      <div class="color-picker-row" id="profileColorPicker">
+        <button class="color-swatch active" data-color="#00d4ff" style="background:#00d4ff"></button>
+        <button class="color-swatch" data-color="#ff6b6b" style="background:#ff6b6b"></button>
+        <button class="color-swatch" data-color="#ffd93d" style="background:#ffd93d"></button>
+        <button class="color-swatch" data-color="#6bcb77" style="background:#6bcb77"></button>
+        <button class="color-swatch" data-color="#c77dff" style="background:#c77dff"></button>
+        <button class="color-swatch" data-color="#ff9f43" style="background:#ff9f43"></button>
+        <button class="color-swatch" data-color="#a8dadc" style="background:#a8dadc"></button>
+        <button class="color-swatch" data-color="#aaa" style="background:#aaa"></button>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn-cancel" id="profileModalCancel">Cancel</button>
+        <button class="modal-btn-save" id="profileModalSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm / destructive action modal -->
+  <div class="modal-overlay" id="confirmModal" hidden>
+    <div class="modal-card">
+      <div class="modal-title" id="confirmTitle">Are you sure?</div>
+      <div class="modal-msg" id="confirmMsg"></div>
+      <div class="modal-actions">
+        <button class="modal-btn-cancel" id="confirmCancel">Cancel</button>
+        <button class="modal-btn-danger" id="confirmOk">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div class="toast" id="toast" hidden></div>
+
+  <!-- ═══════════════════════════════════ HOW IT WORKS overlay ══ -->
+  <div class="hiw-overlay" id="hiwOverlay" hidden>
+    <div class="hiw-modal">
+
+      <button class="hiw-close" id="hiwClose" aria-label="Close">✕</button>
+
+      <!-- Progress dots -->
+      <div class="hiw-dots" id="hiwDots">
+        <span class="hiw-dot" data-step="0"></span>
+        <span class="hiw-dot" data-step="1"></span>
+        <span class="hiw-dot" data-step="2"></span>
+        <span class="hiw-dot" data-step="3"></span>
+        <span class="hiw-dot" data-step="4"></span>
+      </div>
+
+      <!-- Step 0 — What We Measure -->
+      <div class="hiw-step" id="hiwStep0">
+        <div class="hiw-step-icon hiw-icon-measure">◎</div>
+        <div class="hiw-step-title">What We Measure</div>
+        <div class="hiw-step-body">
+          <p>This app estimates break speed from the sound of your break shot — no extra hardware needed.</p>
+          <p>It detects the cue-ball strike and rack scatter in your phone's microphone to calculate impact speed.</p>
+          <p class="hiw-note">Results are confidence-based estimates, not radar-gun measurements. Use them as training feedback.</p>
+        </div>
+      </div>
+
+      <!-- Step 1 — Phone Placement -->
+      <div class="hiw-step" id="hiwStep1" hidden>
+        <div class="hiw-step-icon hiw-icon-phone">◐</div>
+        <div class="hiw-step-title">Phone Placement</div>
+        <div class="hiw-step-body">
+          <!-- Vertical table diagram — phone on RACK/FOOT end rail -->
+          <svg class="hiw-placement-svg" viewBox="0 0 200 260" preserveAspectRatio="xMidYMid meet" aria-label="Place phone on the foot-end rail near the rack">
+            <!-- Table frame -->
+            <rect x="4" y="4" width="192" height="252" rx="10" fill="#162e22" stroke="rgba(255,255,255,.14)" stroke-width="1.5"/>
+            <!-- Inner felt -->
+            <rect x="22" y="22" width="156" height="208" rx="5" fill="#1e5738" stroke="rgba(255,255,255,.05)" stroke-width="1"/>
+            <!-- Head string (horizontal) — 1/4 from top -->
+            <line x1="24" y1="74" x2="178" y2="74" stroke="rgba(255,255,255,.18)" stroke-width="1.2" stroke-dasharray="5,4"/>
+            <!-- Foot spot -->
+            <circle cx="100" cy="178" r="3.5" fill="rgba(255,255,255,.35)"/>
+            <!-- Cue ball at head string center -->
+            <circle cx="100" cy="74" r="5" fill="rgba(255,255,255,.65)" stroke="rgba(255,255,255,.9)" stroke-width=".8"/>
+            <!-- Rack triangle: apex at foot spot pointing toward head string, base toward foot rail -->
+            <!-- Row 1 — apex -->
+            <circle cx="100" cy="178" r="4"   fill="rgba(255,255,255,.28)" stroke="rgba(255,255,255,.5)"  stroke-width=".8"/>
+            <!-- Row 2 — 2 balls, one row below apex (toward foot) -->
+            <circle cx="96"  cy="185" r="4"   fill="rgba(255,255,255,.18)" stroke="rgba(255,255,255,.32)" stroke-width=".8"/>
+            <circle cx="104" cy="185" r="4"   fill="rgba(255,255,255,.18)" stroke="rgba(255,255,255,.32)" stroke-width=".8"/>
+            <!-- Row 3 — 3 balls, two rows below apex -->
+            <circle cx="92"  cy="192" r="3.5" fill="rgba(255,255,255,.1)"  stroke="rgba(255,255,255,.2)"  stroke-width=".8"/>
+            <circle cx="100" cy="192" r="3.5" fill="rgba(255,255,255,.1)"  stroke="rgba(255,255,255,.2)"  stroke-width=".8"/>
+            <circle cx="108" cy="192" r="3.5" fill="rgba(255,255,255,.1)"  stroke="rgba(255,255,255,.2)"  stroke-width=".8"/>
+            <!-- ══ PHONE ZONE — BOTTOM RAIL (foot/rack end) ══ -->
+            <rect x="52" y="231" width="96" height="23" rx="7"   fill="none"                  stroke="rgba(0,215,255,.22)" stroke-width="2"   stroke-dasharray="4,3"/>
+            <rect x="55" y="233" width="90" height="19" rx="5.5" fill="rgba(0,215,255,.14)"  stroke="rgba(0,215,255,.7)"  stroke-width="1.3"/>
+            <!-- Phone body (landscape on the rail) -->
+            <rect x="65" y="236" width="24" height="14" rx="2.5" fill="rgba(0,215,255,.32)"  stroke="rgba(0,215,255,.95)" stroke-width="1.1"/>
+            <rect x="68"  y="239" width="18" height="7"  rx="1"  fill="rgba(0,215,255,.1)"/>
+            <circle cx="86" cy="247" r="1.3" fill="rgba(0,215,255,.8)"/>
+            <text x="96" y="245" font-size="7" fill="rgba(0,215,255,.85)" font-family="sans-serif" font-weight="700">PHONE</text>
+            <!-- Do-not-place X at head end (top rail) -->
+            <circle cx="100" cy="13" r="9"  fill="rgba(255,50,50,.1)"  stroke="rgba(255,80,80,.45)" stroke-width="1"/>
+            <line x1="95" y1="8"  x2="105" y2="18" stroke="rgba(255,80,80,.7)" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="105" y1="8" x2="95"  y2="18" stroke="rgba(255,80,80,.7)" stroke-width="1.5" stroke-linecap="round"/>
+            <!-- Legend -->
+            <text x="100" y="48"  font-size="6.5" fill="rgba(255,255,255,.28)" text-anchor="middle" font-family="monospace" font-weight="bold">CUE END</text>
+            <text x="100" y="220" font-size="6.5" fill="rgba(255,255,255,.28)" text-anchor="middle" font-family="monospace" font-weight="bold">RACK END → PHONE HERE</text>
+          </svg>
+          <p class="hiw-placement-caption">Place your phone flat on the <strong>rail near the rack</strong>, mic side facing the table.</p>
+          <ul class="hiw-tips">
+            <li>Same spot every attempt for consistent readings</li>
+            <li>Stable surface only — not handheld or leaning</li>
+            <li>Don't touch the phone during recording</li>
+            <li>Record <strong>3 breaks per session</strong> for the best read</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Step 2 — Confidence Tiers -->
+      <div class="hiw-step" id="hiwStep2" hidden>
+        <div class="hiw-step-icon hiw-icon-conf">●</div>
+        <div class="hiw-step-title">Understanding Confidence</div>
+        <div class="hiw-step-body">
+          <p>Every reading gets a confidence tier based on how clearly the impact was detected.</p>
+          <div class="hiw-badges">
+            <div class="hiw-badge-row">
+              <span class="badge badge-high">● HIGH</span>
+              <span class="hiw-badge-desc">Strongest reading — trust this number</span>
+            </div>
+            <div class="hiw-badge-row">
+              <span class="badge badge-near">◐ NEAR-HIGH</span>
+              <span class="hiw-badge-desc">Very usable — use with context</span>
+            </div>
+            <div class="hiw-badge-row">
+              <span class="badge badge-med">◑ MEDIUM</span>
+              <span class="hiw-badge-desc">Rough estimate — interpret carefully</span>
+            </div>
+            <div class="hiw-badge-row">
+              <span class="badge badge-low">○ LOW</span>
+              <span class="hiw-badge-desc">Retake suggested when possible</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 — Reading Results -->
+      <div class="hiw-step" id="hiwStep3" hidden>
+        <div class="hiw-step-icon hiw-icon-results">≈</div>
+        <div class="hiw-step-title">Reading Your Results</div>
+        <div class="hiw-step-body">
+          <div class="hiw-result-rows">
+            <div class="hiw-result-row">
+              <span class="hiw-result-lbl">Best Break</span>
+              <span class="hiw-result-desc">Strongest single reading from the session</span>
+            </div>
+            <div class="hiw-result-row">
+              <span class="hiw-result-lbl">Session Avg</span>
+              <span class="hiw-result-desc">Average across all rankable reads (HIGH, NEAR-HIGH, MEDIUM)</span>
+            </div>
+            <div class="hiw-result-row">
+              <span class="hiw-result-lbl">Consistency</span>
+              <span class="hiw-result-desc">How repeatable your speeds are — lower variation means a more repeatable break</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 — Track Progress -->
+      <div class="hiw-step" id="hiwStep4" hidden>
+        <div class="hiw-step-icon hiw-icon-trend">↗</div>
+        <div class="hiw-step-title">Track Your Progress</div>
+        <div class="hiw-step-body">
+          <p>Create a player profile to automatically save every session.</p>
+          <ul class="hiw-tips">
+            <li>View your full <strong>break history</strong> session by session</li>
+            <li>See <strong>speed and consistency trend charts</strong> over time</li>
+            <li>Add multiple profiles for different players or setups</li>
+          </ul>
+          <p class="hiw-note">Tap the player pill at the top of any screen to create your first profile.</p>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="hiw-nav">
+        <button class="hiw-skip-btn" id="hiwSkip">Skip</button>
+        <div class="hiw-nav-right">
+          <button class="hiw-back-btn" id="hiwBack" hidden>Back</button>
+          <button class="hiw-next-btn" id="hiwNext">Next</button>
+        </div>
+      </div>
+
+    </div><!-- /hiw-modal -->
+  </div><!-- /hiw-overlay -->
+
+  <!-- ══════════════════════════════════════════════════ HERO ══ -->
+  <div class="screen screen-has-nav" id="screenHero">
+
+    <div class="screen-topbar">
+      <button class="profile-pill" id="profilePillHero">
+        <span class="profile-pill-dot" id="profilePillHeroDot"></span>
+        <span class="profile-pill-name" id="profilePillHeroName">Loading…</span>
+        <span class="profile-pill-caret">▾</span>
+      </button>
+    </div>
+
+    <div class="hero-inner">
+      <div class="hero-emblem">◎</div>
+      <h1 class="hero-title">Measure Your Break</h1>
+      <p class="hero-sub" id="heroSub">Record 3 breaks for your most accurate reading</p>
+      <button class="btn-primary" id="startSessionBtn">
+        <span class="btn-dot"></span> Start Session
+      </button>
+
+      <button class="hiw-hero-link" id="heroHiwBtn">
+        <span class="hiw-hero-link-q">?</span> How It Works
+      </button>
+
+      <!-- Break Setup card -->
+      <details class="setup-card" id="setupCard">
+        <summary class="setup-card-toggle">
+          <span class="setup-card-icon">⚑</span>
+          <span class="setup-card-lbl">Break Setup</span>
+          <span class="setup-card-summary" id="setupSummary">9 ft · 8-ball · Center</span>
+          <span class="setup-card-chevron">›</span>
+        </summary>
+        <div class="setup-card-body">
+
+          <!-- A: Table Size -->
+          <div class="setup-section">
+            <div class="setup-lbl">Table Size</div>
+            <div class="setup-opts" id="setupTableSize">
+              <button class="setup-btn" data-val="7ft">7 ft</button>
+              <button class="setup-btn" data-val="8ft">8 ft</button>
+              <button class="setup-btn active" data-val="9ft">9 ft</button>
+              <button class="setup-btn" data-val="custom">Custom…</button>
+            </div>
+          </div>
+
+          <!-- Custom size rolling pickers -->
+          <div class="setup-custom-wrap" id="setupCustomWrap" hidden>
+            <p class="setup-custom-hint">Playing surface size, rail-to-rail — not outer table dimensions</p>
+            <div class="setup-wheels-row">
+              <div class="setup-wheel-col">
+                <div class="setup-wheel-lbl">Length</div>
+                <div class="wheel-picker" id="wheelLength">
+                  <div class="wheel-track" id="wheelLengthTrack"></div>
+                  <div class="wheel-fade wheel-fade-top"></div>
+                  <div class="wheel-fade wheel-fade-bot"></div>
+                  <div class="wheel-sel-bar"></div>
+                </div>
+                <div class="setup-wheel-unit">inches</div>
+              </div>
+              <div class="setup-wheel-x">×</div>
+              <div class="setup-wheel-col">
+                <div class="setup-wheel-lbl">Width</div>
+                <div class="wheel-picker" id="wheelWidth">
+                  <div class="wheel-track" id="wheelWidthTrack"></div>
+                  <div class="wheel-fade wheel-fade-top"></div>
+                  <div class="wheel-fade wheel-fade-bot"></div>
+                  <div class="wheel-sel-bar"></div>
+                </div>
+                <div class="setup-wheel-unit">inches</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- B: Rack / Game -->
+          <div class="setup-section">
+            <div class="setup-lbl">Rack / Game</div>
+            <div class="setup-opts" id="setupRackConfig">
+              <button class="setup-btn active" data-val="8ball">8-ball</button>
+              <button class="setup-btn" data-val="9ball">9-ball</button>
+              <button class="setup-btn" data-val="9ball-9spot">9 on spot</button>
+              <button class="setup-btn" data-val="10ball">10-ball</button>
+            </div>
+          </div>
+
+          <!-- C: Break Position (vertical table diagram + label buttons) -->
+          <div class="setup-section">
+            <div class="setup-lbl">Break Position</div>
+            <div class="setup-table-wrap">
+              <!--
+                Vertical SVG: head (CUE) at top, rack (FOOT) at bottom.
+                5 break-position circles spread horizontally at the head string (y=84).
+                Ball path goes diagonally from selected position down to foot spot (cx=120,cy=212).
+              -->
+              <svg class="setup-svg setup-svg-vertical" viewBox="0 0 240 296" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                <!-- Table frame (rail) -->
+                <rect x="4" y="4" width="232" height="288" rx="10" fill="#1b4332" stroke="rgba(255,255,255,.14)" stroke-width="1.5"/>
+                <!-- Inner felt -->
+                <rect x="24" y="24" width="192" height="248" rx="5" fill="#1e5738" stroke="rgba(255,255,255,.05)" stroke-width="1"/>
+                <!-- Head string — horizontal dashed line at 1/4 from top of felt -->
+                <line x1="26" y1="86" x2="214" y2="86" stroke="rgba(255,255,255,.2)" stroke-width="1.2" stroke-dasharray="5,4"/>
+                <!-- Foot spot (center, 3/4 from top of felt) -->
+                <circle cx="120" cy="210" r="3.5" fill="rgba(255,255,255,.35)"/>
+                <!-- Ball path (updated by JS: x1 changes, x2 stays 120) -->
+                <line id="svgBallPath" x1="120" y1="86" x2="120" y2="204" stroke="var(--accent)" stroke-width="1.3" stroke-dasharray="6,4" opacity="0.5"/>
+                <!-- Arrow at foot spot pointing down -->
+                <polygon id="svgArrow" points="116,202 120,212 124,202" fill="var(--accent)" opacity="0.5"/>
+                <!-- Labels -->
+                <text x="120" y="56"  font-size="7.5" fill="rgba(255,255,255,.28)" text-anchor="middle" font-family="monospace" font-weight="bold">CUE END</text>
+                <text x="120" y="268" font-size="7.5" fill="rgba(255,255,255,.28)" text-anchor="middle" font-family="monospace" font-weight="bold">RACK END</text>
+                <!-- Break-position circles at head string level: 5 horizontal positions -->
+                <!-- cx values: left=38, slight-left=76, center=120, slight-right=164, right=202 -->
+                <g id="svgPositions">
+                  <!-- Invisible large hit targets -->
+                  <circle data-pos="left"         cx="38"  cy="86" r="24" fill="transparent" style="cursor:pointer"/>
+                  <circle data-pos="slight-left"   cx="76"  cy="86" r="24" fill="transparent" style="cursor:pointer"/>
+                  <circle data-pos="center"        cx="120" cy="86" r="24" fill="transparent" style="cursor:pointer"/>
+                  <circle data-pos="slight-right"  cx="164" cy="86" r="24" fill="transparent" style="cursor:pointer"/>
+                  <circle data-pos="right"         cx="202" cy="86" r="24" fill="transparent" style="cursor:pointer"/>
+                  <!-- Visible markers -->
+                  <circle class="svgPos" data-pos="left"         cx="38"  cy="86" r="10" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.3)" stroke-width="1.5" pointer-events="none"/>
+                  <circle class="svgPos" data-pos="slight-left"  cx="76"  cy="86" r="10" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.3)" stroke-width="1.5" pointer-events="none"/>
+                  <circle class="svgPos" data-pos="center"       cx="120" cy="86" r="11" fill="var(--accent)"         stroke="none"                  opacity="0.85"     pointer-events="none"/>
+                  <circle class="svgPos" data-pos="slight-right" cx="164" cy="86" r="10" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.3)" stroke-width="1.5" pointer-events="none"/>
+                  <circle class="svgPos" data-pos="right"        cx="202" cy="86" r="10" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.3)" stroke-width="1.5" pointer-events="none"/>
+                </g>
+              </svg>
+              <div class="setup-pos-row" id="setupPosRow">
+                <button class="pos-btn" data-pos="left">Left</button>
+                <button class="pos-btn" data-pos="slight-left">Sl. Left</button>
+                <button class="pos-btn pos-btn-active" data-pos="center">Center</button>
+                <button class="pos-btn" data-pos="slight-right">Sl. Right</button>
+                <button class="pos-btn" data-pos="right">Right</button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /setup-card-body -->
+      </details><!-- /setup-card -->
+
+      <!-- Upload accordion -->
+      <details class="upload-accordion" id="uploadAccordion">
+        <summary class="upload-accordion-toggle">Use existing recording</summary>
+        <div class="upload-accordion-body">
+          <div class="drop-zone" id="dropZone">
+            <div class="drop-icon">↑</div>
+            <div class="drop-label">Drag &amp; drop recordings here</div>
+            <div class="drop-hint">Supports .aac, .wav, .mp3, .m4a and more</div>
+            <label class="btn-ghost file-lbl" for="fileInput">Browse Files</label>
+            <input type="file" id="fileInput" multiple
+              accept=".wav,.aac,.mp3,.m4a,.flac,.ogg,.webm,.mp4" />
+          </div>
+          <div class="file-list" id="fileList" hidden></div>
+          <button class="btn-analyze" id="analyzeUploadBtn" hidden>→ Analyze My Break</button>
+          <button class="btn-ghost-sm upload-clear" id="clearUploadBtn" hidden>Clear files</button>
+        </div>
+      </details>
+    </div>
+    <div class="hero-footer">Break Speed Coach © Promethean Games 2026.</div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════ SESSION ══ -->
+  <div class="screen" id="screenSession" hidden>
+
+    <div class="tracker" id="tracker">
+      <div class="tracker-step" id="tStep0">
+        <div class="tracker-dot" id="tDot0"><span>1</span></div>
+        <div class="tracker-lbl">Attempt 1</div>
+      </div>
+      <div class="tracker-line" id="tLine01"></div>
+      <div class="tracker-step" id="tStep1">
+        <div class="tracker-dot" id="tDot1"><span>2</span></div>
+        <div class="tracker-lbl">Attempt 2</div>
+      </div>
+      <div class="tracker-line" id="tLine12"></div>
+      <div class="tracker-step" id="tStep2">
+        <div class="tracker-dot" id="tDot2"><span>3</span></div>
+        <div class="tracker-lbl">Attempt 3</div>
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="stage-panel" id="panelCountdown" hidden>
+        <div class="stage-label" id="countdownLabel">Get Ready</div>
+        <div class="countdown-num" id="countdownNum">3</div>
+      </div>
+
+      <div class="stage-panel" id="panelRecording" hidden>
+        <div class="stage-label" id="recAttemptLabel">Recording Attempt 1</div>
+        <div class="rec-orb" id="recOrb">
+          <div class="rec-orb-ring r1"></div>
+          <div class="rec-orb-ring r2"></div>
+          <div class="rec-orb-core"></div>
+        </div>
+        <div class="rec-elapsed" id="recElapsed">0:00</div>
+        <div class="level-meter"><div class="level-fill" id="levelFill"></div></div>
+        <button class="btn-stop" id="stopRecBtn">■ Stop</button>
+      </div>
+
+      <div class="stage-panel" id="panelSaved" hidden>
+        <div class="saved-check" id="savedCheck">✓</div>
+        <div class="stage-label saved-label">Saved</div>
+      </div>
+
+      <div class="stage-panel" id="panelRack" hidden>
+        <div class="rack-icon">▲</div>
+        <div class="stage-label" id="rackLabel">Rack it up</div>
+        <div class="rack-sub" id="rackSub">Re-rack the balls, then tap when you're ready</div>
+        <button class="btn-primary btn-record" id="rackReadyBtn">
+          <span class="btn-dot"></span> <span id="rackReadyBtnLabel">Ready to Break</span>
+        </button>
+      </div>
+
+      <div class="stage-panel" id="panelIdle">
+        <div class="stage-label" id="idleLabel">Ready</div>
+        <button class="btn-primary btn-record" id="nextRecBtn">
+          <span class="btn-dot"></span> <span id="nextRecBtnLabel">Record Attempt 1</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="saved-list" id="savedList"></div>
+
+    <div class="session-footer">
+      <button class="btn-analyze" id="analyzeBtn" hidden>→ Analyze My Break</button>
+      <button class="btn-ghost-sm" id="addMoreBtn" hidden>+ Add another attempt</button>
+    </div>
+
+    <div class="session-error" id="sessionError" hidden></div>
+
+    <button class="btn-back" id="backToHeroBtn">← Back</button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ ANALYZING ══ -->
+  <div class="screen screen-center" id="screenAnalyzing" hidden>
+    <div class="analyzing-orb">
+      <div class="analyzing-ring r1"></div>
+      <div class="analyzing-ring r2"></div>
+      <div class="analyzing-core">◎</div>
+    </div>
+    <div class="analyzing-label">Analyzing session…</div>
+    <div class="analyzing-sub" id="analyzingCount"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ RESULTS ══ -->
+  <div class="screen screen-results screen-has-nav" id="screenResults" hidden>
+
+    <div class="results-topbar">
+      <button class="btn-back" id="newSessionBtn">← New Session</button>
+      <span class="results-saved-tag" id="resultsSavedTag" hidden></span>
+    </div>
+
+    <div class="results-hero">
+      <div class="results-speed-wrap">
+        <div class="results-speed" id="resultsBestSpeed">—</div>
+        <div class="results-unit" id="resultsUnit">mph</div>
+      </div>
+      <div class="results-label-row">
+        <span class="results-lbl" id="resultsBestLabel">Best Break</span>
+        <span id="resultsBestBadge"></span>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-block">
+        <div class="stat-lbl">Session Avg</div>
+        <div class="stat-val" id="statsAvg">—</div>
+        <div class="stat-sub" id="statsAvgSub"></div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-block">
+        <div class="stat-lbl">Consistency</div>
+        <div class="stat-val" id="statsConsistency">—</div>
+        <div class="stat-sub" id="statsConsistencySub"></div>
+      </div>
+    </div>
+
+    <div class="insight-card" id="insightCard" hidden>
+      <span class="insight-icon">◈</span>
+      <span class="insight-text" id="insightText"></span>
+    </div>
+
+    <div class="tier-cards" id="tierCards"></div>
+
+    <details class="diag-section">
+      <summary class="diag-summary">
+        <span>Diagnostics</span><span class="diag-chevron">›</span>
+      </summary>
+      <div class="diag-body">
+        <table class="diag-table">
+          <thead>
+            <tr>
+              <th>File</th><th>Conf</th>
+              <th>pairScore</th><th>evtQual</th>
+              <th>timing</th><th>dom</th>
+            </tr>
+          </thead>
+          <tbody id="diagBody"></tbody>
+        </table>
+      </div>
+    </details>
+
+    <div class="legend-row">
+      <span class="badge badge-high">● HIGH</span><span class="leg-txt">Strong reading</span>
+      <span class="badge badge-near">◐ NEAR-HIGH</span><span class="leg-txt">Use with context</span>
+      <span class="badge badge-med">◑ MEDIUM</span><span class="leg-txt">Interpret carefully</span>
+      <span class="badge badge-low">○ LOW</span><span class="leg-txt">Retake suggested</span>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════ DASHBOARD ══ -->
+  <div class="screen screen-has-nav" id="screenDashboard" hidden>
+
+    <div class="screen-topbar">
+      <button class="profile-pill" id="profilePillDash">
+        <span class="profile-pill-dot" id="profilePillDashDot"></span>
+        <span class="profile-pill-name" id="profilePillDashName">Loading…</span>
+        <span class="profile-pill-caret">▾</span>
+      </button>
+    </div>
+
+    <div class="dash-body" id="dashBody">
+      <div class="dash-empty" id="dashEmpty" hidden>
+        <div class="dash-empty-icon">◎</div>
+        <div class="dash-empty-msg">No data yet.<br>Record a break session to get started.</div>
+      </div>
+
+      <!-- Profile insight -->
+      <div class="dash-insight" id="dashInsight" hidden>
+        <span class="insight-icon">◈</span>
+        <span id="dashInsightText"></span>
+      </div>
+
+      <!-- ── Coaching Section ─────────────────────────────────────────── -->
+      <div class="coaching-section" id="coachingSection" hidden>
+
+        <!-- Benchmark card — prominent, always on top -->
+        <div class="coach-bench-card" id="coachBenchCard">
+          <div class="coach-bench-eyebrow">Best Trusted Break</div>
+          <div class="coach-bench-row">
+            <span class="coach-bench-speed" id="coachBenchSpeed">—</span>
+            <span class="coach-bench-unit" id="coachBenchUnit"></span>
+          </div>
+          <div class="coach-bench-sub" id="coachBenchSub">Your training benchmark — aim to reproduce this consistently</div>
+        </div>
+
+        <!-- Two-col row: latest break + in-zone score -->
+        <div class="coach-mid-row">
+          <div class="coach-latest-card">
+            <div class="coach-card-eyebrow">Latest Break</div>
+            <div class="coach-latest-speed-row">
+              <span class="coach-latest-speed" id="coachLatestSpeed">—</span>
+              <span class="coach-latest-unit" id="coachLatestUnit"></span>
+            </div>
+            <div id="coachLatestBadge"></div>
+            <div class="coach-latest-status" id="coachLatestStatus" data-eval=""></div>
+            <div class="coach-latest-msg" id="coachLatestMsg"></div>
+          </div>
+
+          <div class="coach-consist-card">
+            <div class="coach-card-eyebrow">In the Zone</div>
+            <div class="coach-consist-fraction" id="coachConsistFraction">—</div>
+            <div class="coach-consist-sublabel">last <span id="coachConsistWindow">6</span> breaks</div>
+            <div class="coach-consist-dots" id="coachConsistDots"></div>
+          </div>
+        </div>
+
+        <!-- Zone gauge visualization -->
+        <div class="coach-gauge-card">
+          <div class="coach-card-eyebrow">Consistency Zone</div>
+          <div class="coach-gauge-wrap" id="coachGaugeWrap"></div>
+          <div class="coach-gauge-legend">
+            <span class="cgl-zone">▊ Zone</span>
+            <span class="cgl-bench">▲ Benchmark</span>
+            <span class="cgl-latest" id="cglLatest" hidden>● Latest</span>
+          </div>
+        </div>
+
+        <!-- Outcome coaching — Ideal Break Zone (populated once tags exist) -->
+        <div class="coach-outcome-card" id="coachOutcomeCard" hidden>
+          <div class="coach-card-eyebrow">Ideal Break Zone</div>
+          <div class="coach-outcome-zone-display" id="coachOutcomeZone"></div>
+          <div class="coach-outcome-insights" id="coachOutcomeInsights"></div>
+          <div class="coach-outcome-footer" id="coachOutcomeFooter"></div>
+        </div>
+
+        <!-- Coaching philosophy line -->
+        <div class="coach-philosophy">Train to reproduce your best trusted break — not just chase one lucky swing.</div>
+
+      </div><!-- /coaching-section -->
+
+      <!-- Section header above raw stats -->
+      <div class="dash-section-hdr" id="dashSectionHdr" hidden>Details</div>
+
+      <!-- Stats grid -->
+      <div class="dash-stats-grid" id="dashStatsGrid" hidden>
+        <div class="dash-stat-card">
+          <div class="dash-stat-val" id="dAvg">—</div>
+          <div class="dash-stat-lbl">Average Speed</div>
+          <div class="dash-stat-sub" id="dAvgSub">rankable only</div>
+        </div>
+        <div class="dash-stat-card dash-stat-highlight">
+          <div class="dash-stat-val" id="dBest">—</div>
+          <div class="dash-stat-lbl">Best HIGH Break</div>
+          <div class="dash-stat-sub">confirmed</div>
+        </div>
+        <div class="dash-stat-card">
+          <div class="dash-stat-val" id="dLast10">—</div>
+          <div class="dash-stat-lbl">Last 10 Avg</div>
+          <div class="dash-stat-sub">recent form</div>
+        </div>
+        <div class="dash-stat-card">
+          <div class="dash-stat-val" id="dConsistency">—</div>
+          <div class="dash-stat-lbl">Consistency</div>
+          <div class="dash-stat-sub" id="dConsistencySub"></div>
+        </div>
+        <div class="dash-stat-card">
+          <div class="dash-stat-val" id="dTotal">—</div>
+          <div class="dash-stat-lbl">Total Attempts</div>
+          <div class="dash-stat-sub" id="dTotalSub"></div>
+        </div>
+        <div class="dash-stat-card">
+          <div class="dash-stat-val" id="dHighPct">—</div>
+          <div class="dash-stat-lbl">HIGH %</div>
+          <div class="dash-stat-sub" id="dHighSub"></div>
+        </div>
+      </div>
+
+      <!-- ── Trends section ─────────────────────────────────────── -->
+      <div class="trends-section" id="trendsSection" hidden>
+
+        <div class="trends-hdr">
+          <span class="trends-title">Trends</span>
+          <div class="tr-btn-group" id="trendsRangeBtns">
+            <button class="tr-btn active" data-range="10">10</button>
+            <button class="tr-btn" data-range="25">25</button>
+            <button class="tr-btn" data-range="50">50</button>
+            <button class="tr-btn" data-range="all">All</button>
+          </div>
+        </div>
+
+        <!-- Speed chart -->
+        <div class="trend-card">
+          <div class="trend-card-hdr">
+            <span class="trend-card-title">Break Speed</span>
+            <div class="tr-btn-group" id="speedModeBtns">
+              <button class="tr-btn active" data-mode="rankable">Rankable</button>
+              <button class="tr-btn" data-mode="high">HIGH</button>
+              <button class="tr-btn" data-mode="sessionAvg">Avg</button>
+            </div>
+          </div>
+          <div class="trend-summary" id="speedSummary" hidden></div>
+          <div class="trend-chart-wrap">
+            <canvas id="speedChart"></canvas>
+          </div>
+          <div class="trend-empty" id="speedEmpty" hidden>Not enough rankable attempts yet. Record more sessions to unlock speed trends.</div>
+          <p class="trend-caption">mph across recorded attempts</p>
+        </div>
+
+        <!-- Consistency chart -->
+        <div class="trend-card">
+          <div class="trend-card-hdr">
+            <span class="trend-card-title">Consistency</span>
+            <div class="tr-btn-group" id="consistRollingBtns">
+              <button class="tr-btn active" data-rolling="off">Raw</button>
+              <button class="tr-btn" data-rolling="on">Smoothed</button>
+            </div>
+          </div>
+          <div class="trend-chart-wrap">
+            <canvas id="consistChart"></canvas>
+          </div>
+          <div class="trend-empty" id="consistEmpty" hidden>Consistency appears after sessions with multiple valid breaks.</div>
+          <p class="trend-caption">σ mph per session · lower spread = more repeatable</p>
+        </div>
+
+      </div><!-- /trends-section -->
+    </div><!-- /dash-body -->
+  </div><!-- /screenDashboard -->
+
+  <!-- ════════════════════════════════════════════ HISTORY ══ -->
+  <div class="screen screen-has-nav" id="screenHistory" hidden>
+
+    <div class="screen-topbar">
+      <button class="profile-pill" id="profilePillHist">
+        <span class="profile-pill-dot" id="profilePillHistDot"></span>
+        <span class="profile-pill-name" id="profilePillHistName">Loading…</span>
+        <span class="profile-pill-caret">▾</span>
+      </button>
+    </div>
+
+    <div class="hist-toolbar">
+      <div class="hist-filters" id="histFilters">
+        <button class="hist-filter active" data-filter="all">All</button>
+        <button class="hist-filter" data-filter="high">HIGH</button>
+        <button class="hist-filter" data-filter="near_high">NEAR-HIGH</button>
+        <button class="hist-filter" data-filter="medium">MEDIUM</button>
+        <button class="hist-filter" data-filter="low">LOW</button>
+      </div>
+      <button class="hist-clear-btn" id="histClearBtn" title="Clear all history">✕ Clear</button>
+    </div>
+
+    <div class="hist-list" id="histList">
+      <div class="hist-empty" id="histEmpty" hidden>
+        <div class="hist-empty-icon">≡</div>
+        <div class="hist-empty-msg">No sessions yet.<br>Your break history will appear here.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════ OUTCOME TAG SHEET ══ -->
+  <!-- Slides up after a successful break analysis to capture break outcomes. -->
+  <div class="tag-overlay" id="tagOverlay" hidden role="dialog" aria-modal="true" aria-label="Tag this break">
+    <div class="tag-sheet">
+      <div class="tag-header">
+        <div class="tag-title-row">
+          <span class="tag-title">Tag This Break</span>
+          <button class="tag-close-btn" id="tagCloseBtn" aria-label="Skip">✕</button>
+        </div>
+        <div class="tag-subtitle" id="tagSubtitle">How did this break go?</div>
+      </div>
+
+      <div class="tag-rows" id="tagRows">
+        <!-- Rows injected by JS based on game mode -->
+      </div>
+
+      <div class="tag-actions">
+        <button class="tag-skip-btn" id="tagSkipBtn">Skip</button>
+        <button class="tag-save-btn" id="tagSaveBtn">Save Tags</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ad banner placeholder — filled by Android layer when ads are active -->
+  <div id="adBanner" class="ad-banner" hidden aria-hidden="true"></div>
+
+  <!-- ════════════════════════════════════════════ BOTTOM NAV ══ -->
+  <nav class="bottom-nav" id="bottomNav" hidden>
+    <button class="bnav-btn active" id="bnavAnalyze">
+      <span class="bnav-icon">◎</span>
+      <span class="bnav-lbl">Break</span>
+    </button>
+    <button class="bnav-btn" id="bnavStats">
+      <span class="bnav-icon">★</span>
+      <span class="bnav-lbl">Stats</span>
+    </button>
+    <button class="bnav-btn" id="bnavHistory">
+      <span class="bnav-icon">≡</span>
+      <span class="bnav-lbl">History</span>
+    </button>
+  </nav>
+
+</div>
+<script type="module" src="/src/app.js"></script>
+</body>
+</html>
