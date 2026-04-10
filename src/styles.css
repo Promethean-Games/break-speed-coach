@@ -2106,25 +2106,25 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
 }
 
 .hiw-step-body {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text);
-  line-height: 1.65;
+  line-height: 1.7;
   text-align: left;
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 .hiw-step-body p { margin: 0; }
 .hiw-step-body strong { color: var(--text); font-weight: 600; }
 
 .hiw-note {
-  font-size: 12px !important;
+  font-size: 14px !important;
   color: #98aec6 !important;
   background: var(--surface2);
   border-left: 3px solid var(--border2);
   border-radius: 0 6px 6px 0;
-  padding: 8px 10px !important;
+  padding: 10px 12px !important;
   margin-top: 4px;
 }
 .hiw-note strong { color: var(--text) !important; }
@@ -2140,10 +2140,10 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
 }
 .hiw-tips li {
   position: relative;
-  padding-left: 18px;
-  font-size: 14px;
+  padding-left: 20px;
+  font-size: 16px;
   color: var(--text);
-  line-height: 1.6;
+  line-height: 1.65;
   word-spacing: normal;
   text-align: left;
 }
@@ -2181,9 +2181,9 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
   text-align: center;
 }
 .hiw-badge-desc {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-dim);
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 /* Results explainer */
@@ -2204,14 +2204,14 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
   gap: 3px;
 }
 .hiw-result-lbl {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text);
   text-transform: uppercase;
   letter-spacing: .06em;
 }
 .hiw-result-desc {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-dim);
   line-height: 1.5;
 }
