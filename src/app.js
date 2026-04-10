@@ -6,6 +6,8 @@ import * as store from './store.js';
 const MAX_REC_SECS   = 15;
 const COUNTDOWN_FROM = 3;
 const MPH_TO_KPH     = 1.60934;
+const MPH_TO_FPS     = 1.46667;
+const MPH_TO_MPS     = 0.44704;
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 const DEFAULT_SETTINGS = {
@@ -270,10 +272,16 @@ function initSettings() {
         c.querySelectorAll(".opt-btn").forEach(b => b.classList.toggle("active", b === btn));
         if (key === "theme") applyTheme();
         if (key === "targetAttempts") { updateHeroSub(); syncTrackerDots(); }
-        if (key === "tableSize" && setupState.tableMode !== "custom") {
-          setupState.tableSize = settings.tableSize;
+        if (key === "tableSize") {
+          if (settings.tableSize === "custom") {
+            setupState.tableMode = "custom";
+          } else {
+            setupState.tableMode = "standard";
+            setupState.tableSize = settings.tableSize;
+          }
           applySetupToUI();
           saveSetupToProfile();
+          updateSettingsCustomTableUI();
         }
       });
     });
@@ -282,7 +290,37 @@ function initSettings() {
   syncOpts("themeOpts",      "theme");
   syncOpts("unitsOpts",      "units");
   syncOpts("targetOpts",     "targetAttempts");
+  updateSettingsCustomTableUI();
 }
+
+function updateSettingsCustomTableUI() {
+  const customDiv = document.getElementById("settingsCustomTable");
+  const lenInput  = document.getElementById("settingsTableLength");
+  const widInput  = document.getElementById("settingsTableWidth");
+  if (!customDiv) return;
+  const isCustom = settings.tableSize === "custom";
+  customDiv.hidden = !isCustom;
+  if (isCustom && lenInput && widInput) {
+    lenInput.value = setupState.customLengthIn;
+    widInput.value = setupState.customWidthIn;
+  }
+}
+
+document.getElementById("settingsTableLength")?.addEventListener("change", e => {
+  const v = Math.min(120, Math.max(70, parseInt(e.target.value, 10) || setupState.customLengthIn));
+  e.target.value = v;
+  setupState.customLengthIn = v;
+  updateSetupSummary();
+  saveSetupToProfile();
+});
+
+document.getElementById("settingsTableWidth")?.addEventListener("change", e => {
+  const v = Math.min(60, Math.max(35, parseInt(e.target.value, 10) || setupState.customWidthIn));
+  e.target.value = v;
+  setupState.customWidthIn = v;
+  updateSetupSummary();
+  saveSetupToProfile();
+});
 
 function updateHeroSub() {
   const t = Number(settings.targetAttempts);
@@ -955,7 +993,10 @@ function badge(c) { const x = ci(c); return `<span class="badge ${x.cls}">${x.sy
 
 function convertSpeed(mph) {
   if (mph == null) return null;
-  return settings.units === "kph" ? mph * MPH_TO_KPH : mph;
+  if (settings.units === "kph") return mph * MPH_TO_KPH;
+  if (settings.units === "fps") return mph * MPH_TO_FPS;
+  if (settings.units === "mps") return mph * MPH_TO_MPS;
+  return mph;
 }
 function fmtSpeed(mph, conf) {
   const v = convertSpeed(mph);
@@ -1711,16 +1752,17 @@ function initBreakSetup() {
       } else {
         setupState.tableMode = "standard";
         setupState.tableSize = val;
-        // Sync to Settings drawer
-        settings.tableSize = val;
-        saveSettings(settings);
-        const settingsContainer = document.getElementById("tableSizeOpts");
-        if (settingsContainer) {
-          settingsContainer.querySelectorAll(".opt-btn").forEach(b => {
-            b.classList.toggle("active", b.dataset.value === val);
-          });
-        }
       }
+      // Sync to Settings drawer
+      settings.tableSize = val;
+      saveSettings(settings);
+      const settingsContainer = document.getElementById("tableSizeOpts");
+      if (settingsContainer) {
+        settingsContainer.querySelectorAll(".opt-btn").forEach(b => {
+          b.classList.toggle("active", b.dataset.value === val);
+        });
+      }
+      updateSettingsCustomTableUI();
       applySetupToUI(); saveSetupToProfile();
     });
   });
