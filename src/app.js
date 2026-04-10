@@ -1,0 +1,2012 @@
+import './styles.css';
+import { analyzeFiles, computeDistanceFt } from './analyzer.js';
+import * as store from './store.js';
+
+// ─── Config ─────────────────────────────────────────────────────────────────
+const MAX_REC_SECS   = 15;
+const COUNTDOWN_FROM = 3;
+const MPH_TO_KPH     = 1.60934;
+
+// ─── Settings ────────────────────────────────────────────────────────────────
+const DEFAULT_SETTINGS = {
+  tableSize:      "9ft",
+  theme:          "dark",
+  units:          "mph",
+  targetAttempts: 3,
+};
+
+// ─── Coaching Config ──────────────────────────────────────────────────────────
+const COACH_CONFIG = {
+  ZONE_LOW_PCT:   0.90,
+  ZONE_HIGH_PCT:  1.00,
+  RECENT_WINDOW:  6,
+  MIN_HIGH_READS: 1,
+};
+
+// ─── Outcome Tagging Config ────────────────────────────────────────────────────
+const OUTCOME_CONFIG = {
+  TAG_DELAY_MS: 1100,
+};
+
+function loadSettings() {
+  try { return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem("bsa_settings") || "{}") }; }
+  catch { return { ...DEFAULT_SETTINGS }; }
+}
+function saveSettings(s) {
+  try { localStorage.setItem("bsa_settings", JSON.stringify(s)); } catch {}
+}
+
+let settings = loadSettings();
+
+function applyTheme() {
+  document.body.setAttribute("data-theme", settings.theme);
+}
+
+// ─── Profile state ────────────────────────────────────────────────────────────
+let profiles      = [];
+let activeProfile = null;
+
+function loadActiveProfileId() {
+  try { return localStorage.getItem("bsa_active_profile") || null; } catch { return null; }
+}
+function saveActiveProfileId(id) {
+  try { localStorage.setItem("bsa_active_profile", id || ""); } catch {}
+}
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let recordings     = [];
+let selectedFiles  = [];
+let isRecording    = false;
+let stage          = "idle";
+
+let mediaRecorder    = null;
+let recChunks        = [];
+let recStartMs       = null;
+let micStream        = null;
+let audioCtx         = null;
+let analyserNode     = null;
+
+let countdownTimer   = null;
+let recTimerInterval = null;
+let recAutoStop      = null;
+let levelRaf         = null;
+let savedAutoAdvance = null;
+
+// Outcome tag sheet state
+let tagSessionId   = null;
+let tagProfileId   = null;
+let tagRackConfig  = null;
+let tagBestSpeed   = null;
+let tagBestConf    = null;
+let tagSheetTimer  = null;
+let tagToggles     = { scratched: false, objectBallPocketed: false, breakAndRun: false, moneyBallOnBreak: false };
+
+// History state
+let historyData = [];
+let histFilter  = "all";
+
+// ─── DOM refs ────────────────────────────────────────────────────────────────
+const screenHero      = document.getElementById("screenHero");
+const screenSession   = document.getElementById("screenSession");
+const screenAnalyzing = document.getElementById("screenAnalyzing");
+const screenResults   = document.getElementById("screenResults");
+const screenDashboard = document.getElementById("screenDashboard");
+const screenHistory   = document.getElementById("screenHistory");
+
+const bottomNav   = document.getElementById("bottomNav");
+const bnavAnalyze = document.getElementById("bnavAnalyze");
+const bnavStats   = document.getElementById("bnavStats");
+const bnavHistory = document.getElementById("bnavHistory");
+
+const settingsGear    = document.getElementById("settingsGear");
+const settingsOverlay = document.getElementById("settingsOverlay");
+const settingsClose   = document.getElementById("settingsClose");
+
+const profileOverlay     = document.getElementById("profileOverlay");
+const profileDrawerClose = document.getElementById("profileDrawerClose");
+const profileList        = document.getElementById("profileList");
+const newProfileBtn      = document.getElementById("newProfileBtn");
+
+const profileModal       = document.getElementById("profileModal");
+const profileModalTitle  = document.getElementById("profileModalTitle");
+const profileModalName   = document.getElementById("profileModalName");
+const profileModalCancel = document.getElementById("profileModalCancel");
+const profileModalSave   = document.getElementById("profileModalSave");
+const profileColorPicker = document.getElementById("profileColorPicker");
+
+const confirmModal  = document.getElementById("confirmModal");
+const confirmTitle  = document.getElementById("confirmTitle");
+const confirmMsg    = document.getElementById("confirmMsg");
+const confirmCancel = document.getElementById("confirmCancel");
+const confirmOk     = document.getElementById("confirmOk");
+
+const toastEl = document.getElementById("toast");
+
+const startSessionBtn   = document.getElementById("startSessionBtn");
+const backToHeroBtn     = document.getElementById("backToHeroBtn");
+const newSessionBtn     = document.getElementById("newSessionBtn");
+const heroSub           = document.getElementById("heroSub");
+
+const panelCountdown    = document.getElementById("panelCountdown");
+const panelRecording    = document.getElementById("panelRecording");
+const panelSaved        = document.getElementById("panelSaved");
+const panelRack         = document.getElementById("panelRack");
+const panelIdle         = document.getElementById("panelIdle");
+const rackReadyBtn      = document.getElementById("rackReadyBtn");
+const rackReadyBtnLabel = document.getElementById("rackReadyBtnLabel");
+const rackSub           = document.getElementById("rackSub");
+
+const countdownNum    = document.getElementById("countdownNum");
+const recAttemptLabel = document.getElementById("recAttemptLabel");
+const recElapsed      = document.getElementById("recElapsed");
+const levelFill       = document.getElementById("levelFill");
+const stopRecBtn      = document.getElementById("stopRecBtn");
+const nextRecBtn      = document.getElementById("nextRecBtn");
+const nextRecBtnLabel = document.getElementById("nextRecBtnLabel");
+const savedList       = document.getElementById("savedList");
+const analyzeBtn      = document.getElementById("analyzeBtn");
+const addMoreBtn      = document.getElementById("addMoreBtn");
+const sessionError    = document.getElementById("sessionError");
+
+const tDots  = [0, 1, 2].map(i => document.getElementById(`tDot${i}`));
+const tSteps = [0, 1, 2].map(i => document.getElementById(`tStep${i}`));
+const tLines = [
+  document.getElementById("tLine01"),
+  document.getElementById("tLine12"),
+];
+
+const dropZone         = document.getElementById("dropZone");
+const fileInput        = document.getElementById("fileInput");
+const fileListEl       = document.getElementById("fileList");
+const analyzeUploadBtn = document.getElementById("analyzeUploadBtn");
+const clearUploadBtn   = document.getElementById("clearUploadBtn");
+
+const resultsBestSpeed = document.getElementById("resultsBestSpeed");
+const resultsBestLabel = document.getElementById("resultsBestLabel");
+const resultsBestBadge = document.getElementById("resultsBestBadge");
+const resultsSavedTag  = document.getElementById("resultsSavedTag");
+const resultsUnit      = document.getElementById("resultsUnit");
+const statsAvg         = document.getElementById("statsAvg");
+const statsAvgSub      = document.getElementById("statsAvgSub");
+const statsConsistency = document.getElementById("statsConsistency");
+const statsConsistencySub = document.getElementById("statsConsistencySub");
+const insightCard      = document.getElementById("insightCard");
+const insightText      = document.getElementById("insightText");
+const tierCards        = document.getElementById("tierCards");
+const diagBody         = document.getElementById("diagBody");
+const diagSection      = document.querySelector(".diag-section");
+const analyzingCount   = document.getElementById("analyzingCount");
+
+// Dashboard
+const dashEmpty     = document.getElementById("dashEmpty");
+const dashInsight   = document.getElementById("dashInsight");
+const dashInsightText = document.getElementById("dashInsightText");
+const dashStatsGrid = document.getElementById("dashStatsGrid");
+const dAvg          = document.getElementById("dAvg");
+const dAvgSub       = document.getElementById("dAvgSub");
+const dBest         = document.getElementById("dBest");
+const dLast10       = document.getElementById("dLast10");
+const dConsistency  = document.getElementById("dConsistency");
+const dConsistencySub = document.getElementById("dConsistencySub");
+const dTotal        = document.getElementById("dTotal");
+const dTotalSub     = document.getElementById("dTotalSub");
+const dHighPct      = document.getElementById("dHighPct");
+const dHighSub      = document.getElementById("dHighSub");
+
+// Outcome tag sheet
+const tagOverlay  = document.getElementById("tagOverlay");
+const tagRowsEl   = document.getElementById("tagRows");
+const tagSubtitle = document.getElementById("tagSubtitle");
+const tagSkipBtn  = document.getElementById("tagSkipBtn");
+const tagSaveBtn  = document.getElementById("tagSaveBtn");
+const tagCloseBtn = document.getElementById("tagCloseBtn");
+
+// Coaching section
+const coachingSection      = document.getElementById("coachingSection");
+const coachBenchCard       = document.getElementById("coachBenchCard");
+const coachBenchSpeed      = document.getElementById("coachBenchSpeed");
+const coachBenchUnit       = document.getElementById("coachBenchUnit");
+const coachLatestSpeed     = document.getElementById("coachLatestSpeed");
+const coachLatestUnit      = document.getElementById("coachLatestUnit");
+const coachLatestBadge     = document.getElementById("coachLatestBadge");
+const coachLatestStatus    = document.getElementById("coachLatestStatus");
+const coachLatestMsg       = document.getElementById("coachLatestMsg");
+const coachConsistFraction = document.getElementById("coachConsistFraction");
+const coachConsistWindow   = document.getElementById("coachConsistWindow");
+const coachConsistDots     = document.getElementById("coachConsistDots");
+const coachGaugeWrap       = document.getElementById("coachGaugeWrap");
+const cglLatest            = document.getElementById("cglLatest");
+const dashSectionHdr       = document.getElementById("dashSectionHdr");
+
+// History
+const histList     = document.getElementById("histList");
+const histEmpty    = document.getElementById("histEmpty");
+const histFilters  = document.getElementById("histFilters");
+const histClearBtn = document.getElementById("histClearBtn");
+
+// Profile pills
+const pillElements = [
+  { dot: document.getElementById("profilePillHeroDot"),  name: document.getElementById("profilePillHeroName"),  btn: document.getElementById("profilePillHero")  },
+  { dot: document.getElementById("profilePillDashDot"),  name: document.getElementById("profilePillDashName"),  btn: document.getElementById("profilePillDash")  },
+  { dot: document.getElementById("profilePillHistDot"),  name: document.getElementById("profilePillHistName"),  btn: document.getElementById("profilePillHist")  },
+];
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+let toastTimer = null;
+function showToast(msg, durationMs = 2800) {
+  toastEl.textContent = msg;
+  toastEl.hidden = false;
+  toastEl.classList.remove("toast-hide");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toastEl.classList.add("toast-hide");
+    setTimeout(() => { toastEl.hidden = true; toastEl.classList.remove("toast-hide"); }, 350);
+  }, durationMs);
+}
+
+// ─── Confirm modal ────────────────────────────────────────────────────────────
+let confirmResolver = null;
+function showConfirm(title, msg, okLabel = "Delete") {
+  confirmTitle.textContent = title;
+  confirmMsg.textContent   = msg;
+  confirmOk.textContent    = okLabel;
+  confirmModal.hidden = false;
+  return new Promise(resolve => { confirmResolver = resolve; });
+}
+confirmCancel.addEventListener("click", () => { confirmModal.hidden = true; confirmResolver?.(false); });
+confirmOk.addEventListener("click",     () => { confirmModal.hidden = true; confirmResolver?.(true);  });
+confirmModal.addEventListener("click",  e => { if (e.target === confirmModal) { confirmModal.hidden = true; confirmResolver?.(false); } });
+
+// ─── Settings UI ─────────────────────────────────────────────────────────────
+function initSettings() {
+  applyTheme();
+  updateHeroSub();
+
+  function syncOpts(containerId, key) {
+    const c = document.getElementById(containerId);
+    if (!c) return;
+    c.querySelectorAll(".opt-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.value === String(settings[key]));
+      btn.addEventListener("click", () => {
+        settings[key] = btn.dataset.value;
+        saveSettings(settings);
+        c.querySelectorAll(".opt-btn").forEach(b => b.classList.toggle("active", b === btn));
+        if (key === "theme") applyTheme();
+        if (key === "targetAttempts") { updateHeroSub(); syncTrackerDots(); }
+      });
+    });
+  }
+  syncOpts("tableSizeOpts",  "tableSize");
+  syncOpts("themeOpts",      "theme");
+  syncOpts("unitsOpts",      "units");
+  syncOpts("targetOpts",     "targetAttempts");
+}
+
+function updateHeroSub() {
+  const t = Number(settings.targetAttempts);
+  heroSub.textContent = `Record ${t} break${t !== 1 ? "s" : ""} for your most accurate reading`;
+}
+
+settingsGear.addEventListener("click",  () => { settingsOverlay.hidden = false; });
+settingsClose.addEventListener("click", () => { settingsOverlay.hidden = true;  });
+settingsOverlay.addEventListener("click", e => {
+  if (e.target === settingsOverlay) settingsOverlay.hidden = true;
+});
+
+// ─── Delete All Data ──────────────────────────────────────────────────────────
+document.getElementById("deleteAllDataBtn")?.addEventListener("click", async () => {
+  const yes = await showConfirm(
+    "Delete All Data",
+    "This will permanently delete all player profiles and break history. This cannot be undone.",
+    "Delete All"
+  );
+  if (!yes) return;
+  try {
+    const allProfiles = store.getProfiles();
+    for (const p of allProfiles) store.deleteProfile(p.id);
+    profiles = [];
+    activeProfile = null;
+    saveActiveProfileId(null);
+    updateProfilePills();
+    settingsOverlay.hidden = true;
+    showToast("All data deleted");
+  } catch (err) {
+    console.error("Delete all data failed:", err);
+    showToast("Failed to delete data");
+  }
+});
+
+// ─── Screen switching ─────────────────────────────────────────────────────────
+const NAV_SCREENS = new Set([screenHero, screenResults, screenDashboard, screenHistory]);
+
+function showScreen(screen) {
+  [screenHero, screenSession, screenAnalyzing, screenResults, screenDashboard, screenHistory]
+    .forEach(s => { if (s) s.hidden = s !== screen; });
+  const showNav = NAV_SCREENS.has(screen);
+  if (bottomNav) bottomNav.hidden = !showNav;
+  if (screen === screenHero || screen === screenResults) setActiveTab("analyze");
+  else if (screen === screenDashboard) setActiveTab("stats");
+  else if (screen === screenHistory)   setActiveTab("history");
+  const adsAllowedOnScreen = screen !== screenAnalyzing && screen !== screenResults;
+  window.Android?.setAdVisible(adsAllowedOnScreen);
+}
+
+function setActiveTab(tab) {
+  bnavAnalyze.classList.toggle("active", tab === "analyze");
+  bnavStats.classList.toggle("active",   tab === "stats");
+  bnavHistory.classList.toggle("active", tab === "history");
+}
+
+bnavAnalyze.addEventListener("click", () => showScreen(screenHero));
+bnavStats.addEventListener("click",   () => { showScreen(screenDashboard); loadDashboard(); });
+bnavHistory.addEventListener("click", () => { showScreen(screenHistory); loadHistory(); });
+
+// ─── Profile pills ─────────────────────────────────────────────────────────────
+function updateProfilePills() {
+  const name  = activeProfile?.displayName || "No Player";
+  const color = activeProfile?.colorAccent || "#aaa";
+  pillElements.forEach(({ dot, name: nameEl, btn }) => {
+    if (dot)   dot.style.background = color;
+    if (nameEl) nameEl.textContent = name;
+    if (btn)   btn.style.setProperty("--pill-color", color);
+  });
+}
+
+pillElements.forEach(({ btn }) => {
+  btn?.addEventListener("click", () => openProfileDrawer());
+});
+
+// ─── Profile drawer ────────────────────────────────────────────────────────────
+function openProfileDrawer() {
+  renderProfileList();
+  profileOverlay.hidden = false;
+}
+function closeProfileDrawer() { profileOverlay.hidden = true; }
+
+profileDrawerClose.addEventListener("click", closeProfileDrawer);
+profileOverlay.addEventListener("click", e => {
+  if (e.target === profileOverlay) closeProfileDrawer();
+});
+
+function renderProfileList() {
+  profileList.innerHTML = "";
+  if (profiles.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "profile-list-empty";
+    empty.textContent = "No players yet. Add your first player.";
+    profileList.appendChild(empty);
+    return;
+  }
+  profiles.forEach(p => {
+    const item = document.createElement("div");
+    item.className = "profile-item" + (p.id === activeProfile?.id ? " active" : "");
+    item.innerHTML =
+      `<span class="profile-item-dot" style="background:${p.colorAccent}"></span>` +
+      `<span class="profile-item-name">${p.displayName}</span>`;
+
+    const actions = document.createElement("div");
+    actions.className = "profile-item-actions";
+
+    const editBtn = document.createElement("button");
+    editBtn.className = "profile-action-btn";
+    editBtn.textContent = "Edit";
+    editBtn.addEventListener("click", e => { e.stopPropagation(); openEditProfile(p); });
+
+    const delBtn = document.createElement("button");
+    delBtn.className = "profile-action-btn profile-action-del";
+    delBtn.textContent = "✕";
+    delBtn.addEventListener("click", e => { e.stopPropagation(); deleteProfileFlow(p); });
+
+    actions.append(editBtn, delBtn);
+    item.appendChild(actions);
+    item.addEventListener("click", () => { setActiveProfile(p); closeProfileDrawer(); });
+    profileList.appendChild(item);
+  });
+}
+
+newProfileBtn.addEventListener("click", () => openNewProfile());
+
+// ─── Profile modal ─────────────────────────────────────────────────────────────
+let profileModalMode   = "new";
+let profileModalTarget = null;
+let selectedColor      = "#00d4ff";
+
+function openNewProfile() {
+  profileModalMode   = "new";
+  profileModalTarget = null;
+  profileModalTitle.textContent = "New Player";
+  profileModalName.value = "";
+  selectedColor = "#00d4ff";
+  syncColorPicker();
+  closeProfileDrawer();
+  profileModal.hidden = false;
+  setTimeout(() => profileModalName.focus(), 100);
+}
+
+function openEditProfile(profile) {
+  profileModalMode   = "edit";
+  profileModalTarget = profile;
+  profileModalTitle.textContent = "Edit Player";
+  profileModalName.value = profile.displayName;
+  selectedColor = profile.colorAccent || "#00d4ff";
+  syncColorPicker();
+  closeProfileDrawer();
+  profileModal.hidden = false;
+  setTimeout(() => profileModalName.focus(), 100);
+}
+
+function syncColorPicker() {
+  profileColorPicker.querySelectorAll(".color-swatch").forEach(s => {
+    s.classList.toggle("active", s.dataset.color === selectedColor);
+  });
+}
+
+profileColorPicker.querySelectorAll(".color-swatch").forEach(s => {
+  s.addEventListener("click", () => { selectedColor = s.dataset.color; syncColorPicker(); });
+});
+
+profileModalCancel.addEventListener("click", () => { profileModal.hidden = true; openProfileDrawer(); });
+profileModal.addEventListener("click", e => {
+  if (e.target === profileModal) { profileModal.hidden = true; openProfileDrawer(); }
+});
+
+profileModalSave.addEventListener("click", async () => {
+  const name = profileModalName.value.trim();
+  if (!name) { profileModalName.focus(); return; }
+  profileModalSave.disabled = true;
+  try {
+    if (profileModalMode === "new") {
+      const p = store.createProfile({ displayName: name, colorAccent: selectedColor });
+      profiles.push(p);
+      if (!activeProfile) setActiveProfile(p);
+    } else {
+      const p = store.updateProfile(profileModalTarget.id, { displayName: name, colorAccent: selectedColor });
+      const idx = profiles.findIndex(x => x.id === p.id);
+      if (idx >= 0) profiles[idx] = p;
+      if (activeProfile?.id === p.id) { activeProfile = p; updateProfilePills(); }
+    }
+  } catch (err) {
+    showToast("Error: " + err.message);
+  } finally {
+    profileModalSave.disabled = false;
+    profileModal.hidden = true;
+  }
+});
+
+profileModalName.addEventListener("keydown", e => { if (e.key === "Enter") profileModalSave.click(); });
+
+async function deleteProfileFlow(profile) {
+  const yes = await showConfirm(
+    `Delete "${profile.displayName}"?`,
+    "This will permanently delete the player and all their break history.",
+    "Delete Player"
+  );
+  if (!yes) { openProfileDrawer(); return; }
+  try {
+    store.deleteProfile(profile.id);
+    profiles = profiles.filter(p => p.id !== profile.id);
+    if (activeProfile?.id === profile.id) {
+      activeProfile = profiles[0] || null;
+      saveActiveProfileId(activeProfile?.id || null);
+      updateProfilePills();
+    }
+    showToast("Player deleted");
+  } catch (err) {
+    showToast("Error: " + err.message);
+  }
+}
+
+function setActiveProfile(profile) {
+  activeProfile = profile;
+  saveActiveProfileId(profile?.id || null);
+  updateProfilePills();
+  loadSetupFromProfile();
+}
+
+// ─── Load profiles on startup ─────────────────────────────────────────────────
+async function loadProfiles() {
+  try {
+    profiles = store.getProfiles();
+    const savedId = loadActiveProfileId();
+    const found = profiles.find(p => p.id === savedId);
+    activeProfile = found || profiles[0] || null;
+    if (activeProfile) saveActiveProfileId(activeProfile.id);
+  } catch {
+    profiles = [];
+    activeProfile = null;
+  }
+  updateProfilePills();
+}
+
+// ─── Tracker ─────────────────────────────────────────────────────────────────
+function syncTrackerDots() {
+  const target = Number(settings.targetAttempts);
+  tSteps.forEach((step, i) => {
+    step.style.display = i < Math.min(target, 3) ? "" : "none";
+  });
+  tLines.forEach((line, i) => {
+    line.style.display = i < Math.min(target, 3) - 1 ? "" : "none";
+  });
+}
+
+function updateTracker() {
+  const target = Math.min(Number(settings.targetAttempts), 3);
+  tDots.forEach((dot, i) => {
+    const step = tSteps[i];
+    if (!dot || !step) return;
+    const done = i < recordings.length;
+    dot.classList.toggle("done", done);
+    dot.classList.toggle("active", i === recordings.length && i < target);
+  });
+  tLines.forEach((line, i) => {
+    if (!line) return;
+    line.classList.toggle("done", i < recordings.length - 1);
+  });
+}
+
+// ─── Stage panels ─────────────────────────────────────────────────────────────
+function showStage(name) {
+  stage = name;
+  const panels = { idle: panelIdle, countdown: panelCountdown, recording: panelRecording, saved: panelSaved, rack: panelRack };
+  Object.entries(panels).forEach(([k, el]) => { if (el) el.hidden = k !== name; });
+}
+
+function showSessionError(msg) {
+  if (sessionError) { sessionError.textContent = msg; sessionError.hidden = false; }
+}
+
+// ─── Mic / Recording ─────────────────────────────────────────────────────────
+function extFromMime(mimeType) {
+  if (!mimeType) return ".webm";
+  if (mimeType.includes("ogg")) return ".ogg";
+  if (mimeType.includes("mp4")) return ".mp4";
+  return ".webm";
+}
+
+async function startCountdownThenRecord() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    showSessionError("Microphone not available. Use the upload option instead.");
+    return;
+  }
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 44100 } });
+  } catch (err) {
+    showSessionError("Microphone access denied: " + err.message);
+    return;
+  }
+
+  // Countdown
+  showStage("countdown");
+  let count = COUNTDOWN_FROM;
+  countdownNum.textContent = String(count);
+  countdownTimer = setInterval(() => {
+    count--;
+    if (count <= 0) {
+      clearInterval(countdownTimer); countdownTimer = null;
+      startRecording();
+    } else {
+      countdownNum.textContent = String(count);
+    }
+  }, 1000);
+}
+
+function startRecording() {
+  if (!micStream) return;
+  recChunks = [];
+  recStartMs = Date.now();
+
+  const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus"
+    : MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm"
+    : MediaRecorder.isTypeSupported("audio/ogg;codecs=opus") ? "audio/ogg;codecs=opus"
+    : "";
+
+  mediaRecorder = new MediaRecorder(micStream, mimeType ? { mimeType } : {});
+  mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recChunks.push(e.data); };
+  mediaRecorder.onstop = () => {
+    const blob     = new Blob(recChunks, { type: mediaRecorder.mimeType || "audio/webm" });
+    const url      = URL.createObjectURL(blob);
+    const audio    = new Audio(url);
+    const durationMs = Date.now() - recStartMs;
+    const ext      = extFromMime(mediaRecorder.mimeType);
+    const name     = `attempt-${recordings.length + 1}${ext}`;
+    recordings.push({ blob, url, audio, mimeType: mediaRecorder.mimeType, durationMs, name, playing: false });
+    renderSavedList();
+    updateAnalyzeCTA();
+    updateTracker();
+    nextRecBtnLabel.textContent = `Record Attempt ${recordings.length + 1}`;
+    showStage("saved");
+
+    // Auto-advance if target met
+    const target = Number(settings.targetAttempts);
+    if (recordings.length >= target) {
+      savedAutoAdvance = setTimeout(() => runAnalysis("session"), 1200);
+    }
+  };
+
+  mediaRecorder.start(200);
+  isRecording = true;
+  showStage("recording");
+
+  recAttemptLabel.textContent = `Recording attempt ${recordings.length + 1}…`;
+  startElapsed();
+  startLevel();
+
+  recAutoStop = setTimeout(() => { if (isRecording) stopRecording(); }, MAX_REC_SECS * 1000);
+}
+
+function stopRecording() {
+  if (!isRecording) return;
+  isRecording = false;
+  clearTimeout(recAutoStop); recAutoStop = null;
+  stopElapsed();
+  stopLevel();
+  if (mediaRecorder?.state !== "inactive") mediaRecorder.stop();
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  if (audioCtx)  { audioCtx.close(); audioCtx = null; analyserNode = null; }
+}
+
+function startElapsed() {
+  const start = Date.now();
+  recElapsed.textContent = "0:00";
+  recTimerInterval = setInterval(() => {
+    const s = Math.floor((Date.now() - start) / 1000);
+    recElapsed.textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  }, 500);
+}
+function stopElapsed() { clearInterval(recTimerInterval); recTimerInterval = null; }
+
+function startLevel() {
+  try {
+    audioCtx     = new (window.AudioContext || window.webkitAudioContext)();
+    analyserNode = audioCtx.createAnalyser();
+    analyserNode.fftSize = 256;
+    const src = audioCtx.createMediaStreamSource(micStream);
+    src.connect(analyserNode);
+    const buf = new Uint8Array(analyserNode.frequencyBinCount);
+    function tick() {
+      if (!analyserNode) return;
+      analyserNode.getByteFrequencyData(buf);
+      const avg = buf.reduce((a, b) => a + b, 0) / buf.length / 255;
+      if (levelFill) levelFill.style.width = (avg * 100).toFixed(1) + "%";
+      levelRaf = requestAnimationFrame(tick);
+    }
+    levelRaf = requestAnimationFrame(tick);
+  } catch { /* level meter optional */ }
+}
+function stopLevel() {
+  cancelAnimationFrame(levelRaf); levelRaf = null;
+  if (levelFill) levelFill.style.width = "0%";
+}
+
+// Recording controls
+stopRecBtn.addEventListener("click", () => { clearTimeout(recAutoStop); recAutoStop = null; stopRecording(); });
+nextRecBtn.addEventListener("click", () => { startCountdownThenRecord(); });
+rackReadyBtn.addEventListener("click", () => { showStage("idle"); startCountdownThenRecord(); });
+addMoreBtn.addEventListener("click", () => {
+  nextRecBtnLabel.textContent = `Record Attempt ${recordings.length + 1}`;
+  showStage("idle");
+});
+
+// ─── Saved list ───────────────────────────────────────────────────────────────
+function fmtDur(ms) {
+  const s = Math.round(ms / 1000);
+  return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+}
+
+function renderSavedList() {
+  savedList.innerHTML = "";
+  recordings.forEach((rec, idx) => {
+    const item = document.createElement("div");
+    item.className = "saved-item";
+
+    const numEl = document.createElement("div");
+    numEl.className = "saved-item-num";
+    numEl.textContent = idx + 1;
+
+    const lbl = document.createElement("div");
+    lbl.className = "saved-item-label";
+    lbl.textContent = `Attempt ${idx + 1}`;
+
+    const dur = document.createElement("div");
+    dur.className = "saved-item-dur";
+    dur.textContent = fmtDur(rec.durationMs);
+
+    const playBtn = document.createElement("button");
+    playBtn.className = "saved-item-play" + (rec.playing ? " playing" : "");
+    playBtn.textContent = rec.playing ? "■ Stop" : "▶ Play";
+    playBtn.addEventListener("click", () => togglePlay(rec));
+
+    const delBtn = document.createElement("button");
+    delBtn.className = "saved-item-del";
+    delBtn.textContent = "×";
+    delBtn.addEventListener("click", () => {
+      rec.audio.pause();
+      URL.revokeObjectURL(rec.url);
+      recordings.splice(idx, 1);
+      recordings.forEach((r, i) => { r.name = `attempt-${i + 1}${extFromMime(r.mimeType)}`; });
+      renderSavedList();
+      updateAnalyzeCTA();
+      updateTracker();
+      nextRecBtnLabel.textContent = `Record Attempt ${recordings.length + 1}`;
+      if (stage !== "recording" && stage !== "countdown") showStage("idle");
+    });
+
+    item.append(numEl, lbl, dur, playBtn, delBtn);
+    savedList.appendChild(item);
+  });
+}
+
+function togglePlay(rec) {
+  recordings.forEach(r => {
+    if (r !== rec && r.playing) { r.audio.pause(); r.audio.currentTime = 0; r.playing = false; }
+  });
+  if (rec.playing) {
+    rec.audio.pause(); rec.audio.currentTime = 0; rec.playing = false;
+  } else {
+    rec.audio.currentTime = 0; rec.audio.play(); rec.playing = true;
+  }
+  renderSavedList();
+}
+
+function updateAnalyzeCTA() {
+  const n      = recordings.length;
+  const target = Number(settings.targetAttempts);
+  if (n === 0) { analyzeBtn.hidden = true; addMoreBtn.hidden = true; return; }
+  analyzeBtn.hidden = false;
+  addMoreBtn.hidden = n < target;
+  analyzeBtn.textContent = n < target
+    ? `→ Analyze (${n} attempt${n > 1 ? "s" : ""})`
+    : "→ Analyze My Break";
+}
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+startSessionBtn.addEventListener("click", () => {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    document.getElementById("uploadAccordion").open = true;
+    return;
+  }
+  showScreen(screenSession);
+  recordings = [];
+  renderSavedList();
+  updateAnalyzeCTA();
+  syncTrackerDots();
+  updateTracker();
+  nextRecBtnLabel.textContent = "Record Attempt 1";
+  showStage("idle");
+  startCountdownThenRecord();
+});
+
+backToHeroBtn.addEventListener("click", () => {
+  clearInterval(countdownTimer); countdownTimer = null;
+  clearTimeout(recAutoStop); recAutoStop = null;
+  clearTimeout(savedAutoAdvance); savedAutoAdvance = null;
+  if (isRecording) { isRecording = false; mediaRecorder?.stop(); stopElapsed(); stopLevel(); }
+  stopLevel();
+  showScreen(screenHero);
+});
+
+newSessionBtn.addEventListener("click", () => {
+  recordings = []; selectedFiles = [];
+  renderSavedList(); renderFileList();
+  updateAnalyzeCTA();
+  showScreen(screenHero);
+});
+
+// ─── Upload file logic ────────────────────────────────────────────────────────
+function formatBytes(b) {
+  if (b < 1024)       return b + " B";
+  if (b < 1024*1024)  return (b / 1024).toFixed(1) + " KB";
+  return (b / 1024 / 1024).toFixed(1) + " MB";
+}
+function extOf(n) { return (n.split(".").pop() || "").toUpperCase(); }
+
+function renderFileList() {
+  fileListEl.innerHTML = "";
+  const show = selectedFiles.length > 0;
+  fileListEl.hidden      = !show;
+  analyzeUploadBtn.hidden = !show;
+  clearUploadBtn.hidden   = !show;
+  selectedFiles.forEach((f, idx) => {
+    const div = document.createElement("div");
+    div.className = "file-item";
+    const del = document.createElement("button");
+    del.className = "fi-del";
+    del.textContent = "×";
+    del.addEventListener("click", () => { selectedFiles.splice(idx, 1); renderFileList(); });
+    div.innerHTML =
+      `<span class="fi-ext">${extOf(f.name)}</span>` +
+      `<span class="fi-name">${f.name}</span>` +
+      `<span class="fi-size">${formatBytes(f.size)}</span>`;
+    div.appendChild(del);
+    fileListEl.appendChild(div);
+  });
+}
+
+function addFiles(newFiles) {
+  const seen = new Set(selectedFiles.map(f => f.name + f.size));
+  Array.from(newFiles).forEach(f => { if (!seen.has(f.name + f.size)) selectedFiles.push(f); });
+  renderFileList();
+}
+
+fileInput.addEventListener("change", () => addFiles(fileInput.files));
+dropZone.addEventListener("click",    e => { if (!e.target.closest(".file-lbl")) fileInput.click(); });
+dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
+dropZone.addEventListener("drop",      e => { e.preventDefault(); dropZone.classList.remove("drag-over"); addFiles(e.dataTransfer.files); });
+clearUploadBtn.addEventListener("click", () => { selectedFiles = []; fileInput.value = ""; renderFileList(); });
+
+analyzeUploadBtn.addEventListener("click", () => runAnalysis("upload"));
+analyzeBtn.addEventListener("click",       () => runAnalysis("session"));
+
+// ─── Analysis — browser-side ──────────────────────────────────────────────────
+async function runAnalysis(source) {
+  clearTimeout(savedAutoAdvance); savedAutoAdvance = null;
+  if (isRecording) stopRecording();
+  if (stage === "countdown") { clearInterval(countdownTimer); countdownTimer = null; }
+
+  const files = [];
+  if (source === "session") {
+    recordings.forEach(rec => files.push(new File([rec.blob], rec.name, { type: rec.mimeType })));
+  } else {
+    selectedFiles.forEach(f => files.push(f));
+  }
+  if (files.length === 0) return;
+
+  analyzingCount.textContent = `${files.length} clip${files.length !== 1 ? "s" : ""}`;
+  showScreen(screenAnalyzing);
+
+  try {
+    const distanceFt = computeDistanceFt(
+      setupState.tableMode,
+      setupState.tableSize,
+      setupState.customLengthIn,
+      setupState.customWidthIn,
+      setupState.breakPosition
+    );
+
+    const data = await analyzeFiles(files, distanceFt);
+
+    // Save session locally if profile is active
+    let savedSession = null;
+    if (activeProfile) {
+      try {
+        const { session } = store.saveSession(
+          activeProfile.id,
+          source === "upload" ? "uploaded" : "recorded",
+          data,
+          setupState.rackConfig
+        );
+        savedSession = { sessionId: session.id, profileName: activeProfile.displayName };
+      } catch (e) {
+        console.warn("Failed to save session:", e);
+      }
+    }
+
+    renderResults({ ...data, savedSession });
+    showScreen(screenResults);
+
+    if (savedSession && activeProfile) {
+      if (resultsSavedTag) {
+        resultsSavedTag.textContent = `Saved to ${savedSession.profileName}`;
+        resultsSavedTag.hidden = false;
+      }
+      showToast(`Saved to ${savedSession.profileName}`);
+    } else {
+      if (resultsSavedTag) resultsSavedTag.hidden = true;
+    }
+
+    clearTimeout(tagSheetTimer);
+    if (savedSession?.sessionId && activeProfile) {
+      const sid  = savedSession.sessionId;
+      const best = data.session?.bestBreak || data.session?.topEstimate;
+      tagSheetTimer = setTimeout(
+        () => showTagSheet(sid, activeProfile.id, setupState.rackConfig, best?.speedMph ?? null, best?.confidence ?? null),
+        OUTCOME_CONFIG.TAG_DELAY_MS
+      );
+    }
+  } catch (err) {
+    showScreen(source === "session" ? screenSession : screenHero);
+    showSessionError("Analysis failed: " + err.message);
+  }
+}
+
+// ─── Confidence helpers ───────────────────────────────────────────────────────
+const CONF = {
+  high:      { sym: "●", label: "HIGH",      cls: "badge-high", coach: "Strong",   open: true  },
+  near_high: { sym: "◐", label: "NEAR-HIGH", cls: "badge-near", coach: "Close",    open: true  },
+  medium:    { sym: "◑", label: "MEDIUM",    cls: "badge-med",  coach: "Estimate", open: false },
+  low:       { sym: "○", label: "LOW",       cls: "badge-low",  coach: "Retake",   open: false },
+  very_low:  { sym: "○", label: "LOW",       cls: "badge-low",  coach: "Retake",   open: false },
+};
+function ci(c) { return CONF[c] || CONF.low; }
+function badge(c) { const x = ci(c); return `<span class="badge ${x.cls}">${x.sym} ${x.label}</span>`; }
+
+function convertSpeed(mph) {
+  if (mph == null) return null;
+  return settings.units === "kph" ? mph * MPH_TO_KPH : mph;
+}
+function fmtSpeed(mph, conf) {
+  const v = convertSpeed(mph);
+  if (v == null) return "—";
+  const precise = conf === "high" || conf === "near_high" || conf === "medium";
+  return precise ? v.toFixed(1) : "~" + Math.round(v);
+}
+
+function animateSpeed(el, targetMph) {
+  const target = convertSpeed(targetMph) || 0;
+  const start  = 0;
+  const dur    = 700;
+  const t0     = performance.now();
+  function tick(now) {
+    const p = Math.min(1, (now - t0) / dur);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = (start + (target - start) * eased).toFixed(1);
+    if (p < 1) requestAnimationFrame(tick);
+    else el.textContent = target.toFixed(1);
+  }
+  requestAnimationFrame(tick);
+}
+
+// ─── Render results ───────────────────────────────────────────────────────────
+function renderResults(data) {
+  const { files, session } = data;
+
+  // Hero speed
+  const best = session.bestBreak || session.topEstimate;
+  if (best) {
+    animateSpeed(resultsBestSpeed, best.speedMph);
+    resultsBestLabel.textContent = session.bestBreak ? "Best Break Speed" : "Top Estimate";
+    resultsBestBadge.innerHTML   = badge(best.confidence);
+    resultsUnit.textContent      = settings.units;
+  } else {
+    resultsBestSpeed.textContent = "—";
+    resultsBestLabel.textContent = "No Speed Reading";
+    resultsBestBadge.innerHTML   = "";
+    resultsUnit.textContent      = "";
+  }
+
+  // Session stats strip
+  if (session.sessionAvg != null) {
+    statsAvg.textContent    = fmtSpeed(session.sessionAvg, "medium");
+    statsAvgSub.textContent = session.sessionAvgLabel || "Session avg";
+  } else {
+    statsAvg.textContent    = "—";
+    statsAvgSub.textContent = "Session avg";
+  }
+  const ci2 = session.consistency;
+  statsConsistency.textContent    = ci2?.label || (ci2?.n < 2 ? "—" : "—");
+  statsConsistencySub.textContent = ci2?.stdDev != null
+    ? `σ ${convertSpeed(ci2.stdDev).toFixed(2)} ${settings.units}`
+    : (ci2?.n < 2 ? "2+ reads needed" : "");
+
+  // Insight card
+  if (session.interpretation) {
+    insightText.textContent = session.interpretation;
+    insightCard.hidden = false;
+  } else {
+    insightCard.hidden = true;
+  }
+
+  // Per-file tier cards
+  tierCards.innerHTML = "";
+  files.forEach(f => {
+    const card = document.createElement("div");
+    card.className = "tier-card";
+    const spd = fmtSpeed(f.speedMph, f.confidence);
+    const meta = [
+      f.totalDuration != null ? f.totalDuration.toFixed(2) + "s" : null,
+      f.speedMode,
+    ].filter(Boolean).join(" · ");
+
+    const flagHtml = f.speedFlag
+      ? `<div class="speed-flag">${f.speedFlag.replace("_", " ")}</div>` : "";
+    const rankHtml = f.sessionRank === "best"
+      ? `<span class="best-break-badge">★ BEST</span>`
+      : f.sessionRank === "top_estimate"
+        ? `<span class="best-break-badge" style="border-color:#4a5a00;color:#c8d048;background:#111500">◆ TOP EST</span>`
+        : "";
+
+    card.innerHTML =
+      `<div class="tier-card-name">${f.filename} ${rankHtml}</div>` +
+      `<div class="tier-card-speed">${spd} <span class="tier-unit">${spd !== "—" ? settings.units : ""}</span></div>` +
+      `${badge(f.confidence)}` +
+      (meta ? `<div class="tier-card-meta">${meta}</div>` : "") +
+      flagHtml +
+      (f.error ? `<div class="tier-err">${f.error}</div>` : "");
+    tierCards.appendChild(card);
+  });
+
+  // Diagnostics
+  if (diagSection) {
+    const hasDiag = files.some(f => f.pairScore != null || f.error);
+    diagSection.hidden = !hasDiag;
+    if (hasDiag && diagBody) {
+      diagBody.innerHTML = files.map(f =>
+        f.error
+          ? `<div class="diag-row"><span class="diag-file">${f.filename}</span> <span class="diag-err">${f.error}</span></div>`
+          : f.pairScore != null
+            ? `<div class="diag-row"><span class="diag-file">${f.filename}</span>` +
+              ` ps:<b>${f.pairScore.toFixed(3)}</b>` +
+              ` eq:<b>${(f.eventQuality || 0).toFixed(2)}</b>` +
+              ` dr:<b>${(f.dominanceRatio || 0).toFixed(2)}</b></div>`
+            : ""
+      ).join("");
+    }
+  }
+
+  // No valid readings fallback
+  if (!best && files.length > 0 && !files.some(f => f.speedMph != null)) {
+    if (insightCard && insightText) {
+      insightText.textContent = files.some(f => f.confidence === "error")
+        ? "Files could not be decoded. Check that your browser supports the audio format."
+        : "Signal too weak. Try: hold phone close to the head rail, reduce background noise, and ensure a full-power break.";
+      insightCard.hidden = false;
+    }
+  }
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  if (!activeProfile) {
+    dashEmpty.hidden      = false;
+    dashStatsGrid.hidden  = true;
+    dashInsight.hidden    = true;
+    trendsSection.hidden  = true;
+    coachingSection.hidden = true;
+    dashSectionHdr.hidden  = true;
+    return;
+  }
+  try {
+    const stats          = store.getStats(activeProfile.id);
+    historyData          = store.getHistory(activeProfile.id);
+    const outcomeCoaching = store.getOutcomeCoaching(activeProfile.id);
+    renderCoachingSection(stats, historyData, outcomeCoaching);
+    renderDashboard(stats);
+    if (stats.totalAttempts > 0) loadTrends();
+  } catch {
+    dashEmpty.hidden      = false;
+    dashStatsGrid.hidden  = true;
+    dashInsight.hidden    = true;
+    trendsSection.hidden  = true;
+    coachingSection.hidden = true;
+    dashSectionHdr.hidden  = true;
+  }
+}
+
+function fmtStat(mph) {
+  if (mph == null) return "—";
+  const v = convertSpeed(mph);
+  return v.toFixed(1) + " " + settings.units;
+}
+
+function renderDashboard(stats) {
+  const hasData = stats.totalAttempts > 0;
+  dashEmpty.hidden     = hasData;
+  dashStatsGrid.hidden = !hasData;
+  trendsSection.hidden = !hasData;
+
+  if (!hasData) { dashInsight.hidden = true; return; }
+
+  dAvg.textContent          = fmtStat(stats.avgSpeed);
+  dAvgSub.textContent       = stats.rankableAttempts > 0 ? `${stats.rankableAttempts} rankable read${stats.rankableAttempts !== 1 ? "s" : ""}` : "rankable only";
+  dBest.textContent         = fmtStat(stats.bestHighSpeed);
+  dLast10.textContent       = fmtStat(stats.last10Avg);
+  dConsistency.textContent  = stats.consistency || "—";
+  dConsistencySub.textContent = stats.consistencyStdDev != null
+    ? `σ ${convertSpeed(stats.consistencyStdDev).toFixed(2)} ${settings.units}` : "";
+  dTotal.textContent  = String(stats.totalAttempts);
+  dTotalSub.textContent = `${stats.totalSessions} session${stats.totalSessions !== 1 ? "s" : ""}`;
+  dHighPct.textContent = stats.highAttempts > 0 ? stats.highPct + "%" : "—";
+  dHighSub.textContent = stats.highAttempts > 0 ? `${stats.highAttempts} HIGH read${stats.highAttempts !== 1 ? "s" : ""}` : "no HIGH readings yet";
+
+  if (stats.insightText) {
+    dashInsightText.textContent = stats.insightText;
+    dashInsight.hidden = false;
+  } else {
+    dashInsight.hidden = true;
+  }
+}
+
+// ─── Coaching Layer ───────────────────────────────────────────────────────────
+function computeCoaching(stats, histData) {
+  const benchmark   = stats.bestHighSpeed;
+  const hasBenchmark = benchmark != null && (stats.highAttempts || 0) >= COACH_CONFIG.MIN_HIGH_READS;
+
+  const zoneMin = hasBenchmark ? benchmark * COACH_CONFIG.ZONE_LOW_PCT  : null;
+  const zoneMax = hasBenchmark ? benchmark * COACH_CONFIG.ZONE_HIGH_PCT : null;
+
+  let latestBreak = null;
+  outer: for (const session of (histData || [])) {
+    for (const a of (session.attempts || [])) {
+      if (a.estimatedSpeed != null) { latestBreak = a; break outer; }
+    }
+  }
+
+  let evalStatus = null, evalMsg = null;
+  if (hasBenchmark && latestBreak?.estimatedSpeed != null) {
+    const s = latestBreak.estimatedSpeed;
+    const pctOff = (1 - s / benchmark) * 100;
+    if (s < zoneMin) {
+      evalStatus = "below";
+      evalMsg    = pctOff <= 8 ? "Getting close — keep pushing" : "A little under your pace";
+    } else if (s <= zoneMax) {
+      evalStatus = "in_zone";
+      evalMsg    = "Right in your training zone";
+    } else {
+      evalStatus = "above";
+      evalMsg    = "Great pop — now make it repeatable";
+    }
+  } else if (!hasBenchmark && latestBreak?.estimatedSpeed != null) {
+    evalMsg = "Record more HIGH-confidence breaks to unlock your benchmark.";
+  }
+
+  const recent = [];
+  for (const session of (histData || [])) {
+    for (const a of (session.attempts || [])) {
+      if (a.estimatedSpeed != null) {
+        recent.push(a);
+        if (recent.length >= COACH_CONFIG.RECENT_WINDOW) break;
+      }
+    }
+    if (recent.length >= COACH_CONFIG.RECENT_WINDOW) break;
+  }
+
+  const inZone = hasBenchmark
+    ? recent.filter(a => a.estimatedSpeed >= zoneMin && a.estimatedSpeed <= zoneMax).length
+    : 0;
+
+  return { benchmark, hasBenchmark, zoneMin, zoneMax, latestBreak, evalStatus, evalMsg, recent, inZone };
+}
+
+function buildZoneGaugeSvg(coaching) {
+  const { benchmark, zoneMin, zoneMax, latestBreak, evalStatus } = coaching;
+  if (!benchmark) return "";
+  const W = 260, H = 58, TY = 20, TH = 12, PAD = 12;
+  const dMin = benchmark * 0.62, dMax = benchmark * 1.22, span = dMax - dMin;
+  const px = s => PAD + Math.max(0, Math.min(1, (s - dMin) / span)) * (W - PAD * 2);
+  const fv = s => convertSpeed(s).toFixed(0);
+  const zx1 = px(zoneMin), zx2 = px(zoneMax), bx = px(benchmark);
+  const latSpd = latestBreak?.estimatedSpeed;
+  const lx = latSpd != null ? px(latSpd) : null;
+  const dotColor = evalStatus === "in_zone" ? "#6bcb77" : evalStatus === "above" ? "#ffd93d" : "#ff8c20";
+  let s = `<svg class="coach-gauge-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  s += `<rect x="${PAD}" y="${TY}" width="${W - PAD * 2}" height="${TH}" rx="6" fill="rgba(255,255,255,0.07)"/>`;
+  s += `<rect x="${zx1.toFixed(1)}" y="${TY}" width="${(zx2 - zx1).toFixed(1)}" height="${TH}" rx="3" fill="rgba(0,212,255,0.20)" stroke="rgba(0,212,255,0.45)" stroke-width="1"/>`;
+  s += `<line x1="${bx.toFixed(1)}" y1="${TY - 5}" x2="${bx.toFixed(1)}" y2="${TY + TH + 5}" stroke="#00d4ff" stroke-width="2" stroke-linecap="round"/>`;
+  s += `<text x="${bx.toFixed(1)}" y="${TY - 9}" fill="#00d4ff" font-size="8.5" text-anchor="middle" font-family="monospace" font-weight="700">${fv(benchmark)}</text>`;
+  if (lx != null) {
+    s += `<circle cx="${lx.toFixed(1)}" cy="${(TY + TH / 2).toFixed(1)}" r="6.5" fill="${dotColor}" stroke="#0f1420" stroke-width="2"/>`;
+    if (Math.abs(lx - bx) > 14) s += `<text x="${lx.toFixed(1)}" y="${TY + TH + 16}" fill="${dotColor}" font-size="8" text-anchor="middle" font-family="monospace">${fv(latSpd)}</text>`;
+  }
+  s += `<text x="${PAD}" y="${H}" fill="rgba(255,255,255,0.22)" font-size="8" text-anchor="start" font-family="monospace">${fv(dMin)}</text>`;
+  s += `<text x="${W - PAD}" y="${H}" fill="rgba(255,255,255,0.22)" font-size="8" text-anchor="end" font-family="monospace">${fv(dMax)}</text>`;
+  s += `</svg>`;
+  return s;
+}
+
+function renderCoachingSection(stats, histData, outcomeCoaching) {
+  const hasData = stats.totalAttempts > 0;
+  if (!hasData) {
+    coachingSection.hidden = true;
+    dashSectionHdr.hidden  = true;
+    return;
+  }
+  coachingSection.hidden = false;
+  dashSectionHdr.hidden  = false;
+
+  const c = computeCoaching(stats, histData);
+  const u = settings.units;
+
+  if (c.hasBenchmark) {
+    coachBenchSpeed.textContent = convertSpeed(c.benchmark).toFixed(1);
+    coachBenchUnit.textContent  = u;
+    coachBenchCard.classList.add("coach-bench-card--set");
+    coachBenchCard.classList.remove("coach-bench-card--empty");
+  } else {
+    coachBenchSpeed.textContent = "—";
+    coachBenchUnit.textContent  = "";
+    coachBenchCard.classList.add("coach-bench-card--empty");
+    coachBenchCard.classList.remove("coach-bench-card--set");
+  }
+
+  const lb = c.latestBreak;
+  if (lb) {
+    coachLatestSpeed.textContent = convertSpeed(lb.estimatedSpeed).toFixed(1);
+    coachLatestUnit.textContent  = u;
+    const tierKey = (lb.confidenceTier || "").replace("_", "-");
+    coachLatestBadge.innerHTML   = lb.confidenceTier
+      ? `<span class="badge badge-${tierKey}">${confLabel(lb.confidenceTier)}</span>` : "";
+    if (c.hasBenchmark && c.evalStatus) {
+      const statusLabels = { below: "Below Benchmark", in_zone: "In the Zone", above: "Above Benchmark" };
+      coachLatestStatus.textContent  = statusLabels[c.evalStatus] || "";
+      coachLatestStatus.dataset.eval = c.evalStatus;
+    } else {
+      coachLatestStatus.textContent  = "";
+      coachLatestStatus.dataset.eval = "";
+    }
+    coachLatestMsg.textContent = c.evalMsg || "";
+  } else {
+    coachLatestSpeed.textContent   = "—";
+    coachLatestUnit.textContent    = "";
+    coachLatestBadge.innerHTML     = "";
+    coachLatestStatus.textContent  = "";
+    coachLatestStatus.dataset.eval = "";
+    coachLatestMsg.textContent     = "No breaks recorded yet.";
+  }
+
+  const { recent, inZone } = c;
+  coachConsistWindow.textContent = String(COACH_CONFIG.RECENT_WINDOW);
+  if (recent.length === 0) {
+    coachConsistFraction.textContent = "—";
+    coachConsistDots.innerHTML = "";
+  } else {
+    coachConsistFraction.textContent = c.hasBenchmark ? `${inZone} / ${recent.length}` : `${recent.length}`;
+    coachConsistDots.innerHTML = recent.map(a => {
+      const inZ = c.hasBenchmark && a.estimatedSpeed >= c.zoneMin && a.estimatedSpeed <= c.zoneMax;
+      return `<span class="coach-dot ${inZ ? "coach-dot--in" : "coach-dot--out"}" title="${convertSpeed(a.estimatedSpeed).toFixed(1)} ${u}"></span>`;
+    }).join("");
+  }
+
+  if (c.hasBenchmark) {
+    coachGaugeWrap.innerHTML = buildZoneGaugeSvg(c);
+    cglLatest.hidden = c.latestBreak == null;
+  } else {
+    coachGaugeWrap.innerHTML = `<div class="coach-gauge-empty">Record more HIGH-confidence breaks to unlock your benchmark and zone gauge.</div>`;
+    cglLatest.hidden = true;
+  }
+
+  const coachOutcomeCard     = document.getElementById("coachOutcomeCard");
+  const coachOutcomeZoneEl   = document.getElementById("coachOutcomeZone");
+  const coachOutcomeInsights = document.getElementById("coachOutcomeInsights");
+  const coachOutcomeFooter   = document.getElementById("coachOutcomeFooter");
+  if (!coachOutcomeCard) return;
+  coachOutcomeCard.hidden = false;
+
+  if (!outcomeCoaching || outcomeCoaching.taggedCount === 0) {
+    coachOutcomeZoneEl.innerHTML = `<div class="coach-outcome-teaser">Tag your breaks after each session — the app will learn your ideal speed range based on real outcomes.</div>`;
+    coachOutcomeInsights.innerHTML = "";
+    coachOutcomeFooter.textContent = "";
+  } else if (outcomeCoaching.idealZone) {
+    const low  = convertSpeed(outcomeCoaching.idealZone.lowMph).toFixed(1);
+    const high = convertSpeed(outcomeCoaching.idealZone.highMph).toFixed(1);
+    coachOutcomeZoneEl.innerHTML =
+      `<div class="coach-outcome-range-wrap">` +
+        `<span class="coach-outcome-range">${low}–${high}</span>` +
+        `<span class="coach-outcome-range-unit">${settings.units}</span>` +
+      `</div>` +
+      `<div class="coach-outcome-sub">sweet spot based on your outcomes</div>`;
+    coachOutcomeInsights.innerHTML = outcomeCoaching.insights.length
+      ? outcomeCoaching.insights.map(i => `<div class="coach-outcome-insight">• ${i}</div>`).join("") : "";
+    coachOutcomeFooter.textContent = `${outcomeCoaching.taggedCount} tagged break${outcomeCoaching.taggedCount !== 1 ? "s" : ""} of ${outcomeCoaching.totalCount} recorded`;
+  } else {
+    const need = Math.max(0, 2 - outcomeCoaching.taggedCount);
+    coachOutcomeZoneEl.innerHTML = `<div class="coach-outcome-building">Tag ${need} more break${need !== 1 ? "s" : ""} in the same speed range to unlock your Ideal Zone.</div>`;
+    coachOutcomeInsights.innerHTML = outcomeCoaching.insights.length
+      ? outcomeCoaching.insights.map(i => `<div class="coach-outcome-insight">• ${i}</div>`).join("") : "";
+    coachOutcomeFooter.textContent = `${outcomeCoaching.taggedCount} tagged break${outcomeCoaching.taggedCount !== 1 ? "s" : ""} so far`;
+  }
+}
+
+// ─── Outcome Tag Sheet ────────────────────────────────────────────────────────
+function renderTagRows(rackConfig) {
+  if (!tagRowsEl) return;
+  const is9ball  = rackConfig === "9ball" || rackConfig === "9ball-9spot";
+  const is10ball = rackConfig === "10ball";
+  const moneyLabel = is9ball ? "9 on the Break" : is10ball ? "10 on the Break" : "8 on the Break";
+
+  const rowDefs = [
+    { key: "scratched",          label: "Scratch",       note: "cue ball in pocket", danger: true  },
+    { key: "objectBallPocketed", label: "Ball Pocketed", note: "≥1 object ball in",  danger: false },
+    { key: "breakAndRun",        label: "Break & Run",   note: "cleared the table",  danger: false },
+    { key: "moneyBallOnBreak",   label: moneyLabel,      note: "money ball on break", danger: false },
+  ];
+
+  tagRowsEl.innerHTML = rowDefs.map(({ key, label, note, danger }) => {
+    const isYes = tagToggles[key];
+    return `<div class="tag-row">
+      <div class="tag-row-text">
+        <span class="tag-row-label${danger ? " tag-row-label--danger" : ""}">${label}</span>
+        <span class="tag-row-note">${note}</span>
+      </div>
+      <div class="tag-toggle-group" data-key="${key}">
+        <button class="tag-tog tag-tog--no${!isYes ? " tag-tog--sel-no" : ""}" data-val="false">No</button>
+        <button class="tag-tog tag-tog--yes${isYes ? " tag-tog--sel-yes" : ""}" data-val="true">Yes</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  tagRowsEl.querySelectorAll(".tag-toggle-group").forEach(group => {
+    const key = group.dataset.key;
+    group.querySelectorAll(".tag-tog").forEach(btn => {
+      btn.addEventListener("click", () => {
+        tagToggles[key] = (btn.dataset.val === "true");
+        renderTagRows(rackConfig);
+      });
+    });
+  });
+}
+
+function showTagSheet(sessionId, profileId, rackConfig, bestSpeed, bestConf) {
+  tagSessionId  = sessionId;
+  tagProfileId  = profileId;
+  tagRackConfig = rackConfig;
+  tagBestSpeed  = bestSpeed;
+  tagBestConf   = bestConf;
+  tagToggles    = { scratched: false, objectBallPocketed: false, breakAndRun: false, moneyBallOnBreak: false };
+
+  if (tagSubtitle) {
+    if (bestSpeed != null) {
+      const v       = convertSpeed(bestSpeed);
+      const precise = bestConf === "high" || bestConf === "near_high" || bestConf === "medium";
+      tagSubtitle.textContent = `${precise ? v.toFixed(1) : "~" + Math.round(v)} ${settings.units} — how did this break go?`;
+    } else {
+      tagSubtitle.textContent = "How did this break go?";
+    }
+  }
+
+  renderTagRows(rackConfig);
+  if (tagOverlay) tagOverlay.hidden = false;
+}
+
+function hideTagSheet() {
+  if (tagOverlay) tagOverlay.hidden = true;
+  clearTimeout(tagSheetTimer);
+  tagSessionId = null;
+}
+
+async function saveOutcomeTags() {
+  if (!tagSessionId || !tagProfileId) return;
+  try {
+    if (tagSaveBtn) { tagSaveBtn.disabled = true; tagSaveBtn.textContent = "Saving…"; }
+    store.saveOutcome(tagSessionId, {
+      scratched:          tagToggles.scratched,
+      objectBallPocketed: tagToggles.objectBallPocketed,
+      breakAndRun:        tagToggles.breakAndRun,
+      moneyBallOnBreak:   tagToggles.moneyBallOnBreak,
+      gameMode:           tagRackConfig,
+    });
+    showToast("Break tagged ✓");
+    hideTagSheet();
+  } catch (err) {
+    console.error("Tag save failed:", err);
+    showToast("Couldn't save — try again");
+  } finally {
+    if (tagSaveBtn) { tagSaveBtn.disabled = false; tagSaveBtn.textContent = "Save Tags"; }
+  }
+}
+
+tagSkipBtn?.addEventListener("click",  hideTagSheet);
+tagCloseBtn?.addEventListener("click", hideTagSheet);
+tagSaveBtn?.addEventListener("click",  saveOutcomeTags);
+tagOverlay?.addEventListener("click",  e => { if (e.target === tagOverlay) hideTagSheet(); });
+
+// ─── History ──────────────────────────────────────────────────────────────────
+async function loadHistory() {
+  if (!activeProfile) {
+    histList.innerHTML = "";
+    histEmpty.hidden = false;
+    return;
+  }
+  try {
+    historyData = store.getHistory(activeProfile.id);
+    renderHistory();
+  } catch {
+    histList.innerHTML = "";
+    histEmpty.hidden = false;
+  }
+}
+
+histFilters.querySelectorAll(".hist-filter").forEach(btn => {
+  btn.addEventListener("click", () => {
+    histFilter = btn.dataset.filter;
+    histFilters.querySelectorAll(".hist-filter").forEach(b => b.classList.toggle("active", b === btn));
+    renderHistory();
+  });
+});
+
+histClearBtn.addEventListener("click", async () => {
+  if (!activeProfile) return;
+  const yes = await showConfirm(
+    `Clear all history for ${activeProfile.displayName}?`,
+    "This will permanently delete all saved break sessions for this player.",
+    "Clear History"
+  );
+  if (!yes) return;
+  try {
+    store.clearHistory(activeProfile.id);
+    historyData = [];
+    renderHistory();
+    showToast("History cleared");
+  } catch (err) {
+    showToast("Error: " + err.message);
+  }
+});
+
+function confLabel(tier) {
+  const map = { high: "HIGH", near_high: "NEAR-HIGH", medium: "MEDIUM", low: "LOW", very_low: "LOW", error: "ERROR" };
+  return map[tier] || tier;
+}
+
+function fmtDate(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " " +
+      d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  } catch { return iso; }
+}
+
+function renderHistory() {
+  histList.innerHTML = "";
+  histList.appendChild(histEmpty);
+
+  let sessions = historyData;
+  if (histFilter !== "all") {
+    sessions = sessions.filter(s =>
+      s.attempts?.some(a => {
+        if (histFilter === "low") return a.confidenceTier === "low" || a.confidenceTier === "very_low";
+        return a.confidenceTier === histFilter;
+      })
+    );
+  }
+
+  histEmpty.hidden = sessions.length > 0;
+  if (sessions.length === 0) return;
+
+  sessions.forEach(sess => {
+    const card = document.createElement("div");
+    card.className = "hist-card";
+
+    const hdr = document.createElement("div");
+    hdr.className = "hist-card-header";
+
+    const confTier  = sess.bestConf || (sess.attempts?.[0]?.confidenceTier) || "low";
+    const speedTxt  = sess.bestSpeed != null ? fmtStat(sess.bestSpeed) : "—";
+
+    hdr.innerHTML =
+      `<div class="hist-hdr-left">` +
+        `<div class="hist-speed">${speedTxt}</div>` +
+        `<div class="hist-conf">${badge(confTier)}</div>` +
+      `</div>` +
+      `<div class="hist-hdr-right">` +
+        `<div class="hist-date">${fmtDate(sess.createdAt)}</div>` +
+        `<div class="hist-meta">${[
+          `${sess.attemptCount} attempt${sess.attemptCount !== 1 ? "s" : ""}`,
+          sess.rackConfig ? (RACK_LABELS[sess.rackConfig] || sess.rackConfig) : null,
+          sess.sourceType,
+        ].filter(Boolean).join(" · ")}</div>` +
+      `</div>` +
+      `<button class="hist-del-btn" title="Delete session">✕</button>`;
+
+    hdr.querySelector(".hist-del-btn").addEventListener("click", async e => {
+      e.stopPropagation();
+      const yes = await showConfirm("Delete this session?",
+        `Session from ${fmtDate(sess.createdAt)} with ${sess.attemptCount} attempt${sess.attemptCount !== 1 ? "s" : ""}.`);
+      if (!yes) return;
+      try {
+        store.deleteSession(sess.id);
+        historyData = historyData.filter(s => s.id !== sess.id);
+        renderHistory();
+        showToast("Session deleted");
+      } catch (err) {
+        showToast("Error: " + err.message);
+      }
+    });
+
+    const body = document.createElement("div");
+    body.className = "hist-card-body";
+
+    (sess.attempts || []).forEach(a => {
+      const row = document.createElement("div");
+      row.className = "hist-attempt-row";
+      const speedStr = a.estimatedSpeed != null ? fmtStat(a.estimatedSpeed) : "—";
+      const errHtml  = a.errorMessage ? `<span class="hist-err">${a.errorMessage}</span>` : "";
+      const metricsHtml = !a.errorMessage && a.pairScore != null
+        ? `<span class="hist-metrics">ps:${a.pairScore.toFixed(2)} eq:${(a.eventQuality || 0).toFixed(2)}</span>` : "";
+      row.innerHTML =
+        `<span class="hist-att-name">${a.filename || "attempt"}</span>` +
+        `<span class="hist-att-speed">${speedStr}</span>` +
+        `<span class="hist-att-conf">${badge(a.confidenceTier)}</span>` +
+        errHtml + metricsHtml;
+      body.appendChild(row);
+    });
+
+    hdr.addEventListener("click", e => {
+      if (e.target.classList.contains("hist-del-btn")) return;
+      card.classList.toggle("open");
+    });
+
+    card.append(hdr, body);
+    histList.appendChild(card);
+  });
+}
+
+// ─── Break Setup ──────────────────────────────────────────────────────────────
+const DEFAULT_BREAK_SETUP = {
+  tableMode:      "standard",
+  tableSize:      "9ft",
+  customLengthIn: 100,
+  customWidthIn:  50,
+  rackConfig:     "8ball",
+  breakPosition:  "center",
+};
+
+let setupState = { ...DEFAULT_BREAK_SETUP };
+
+const TABLE_DIMS_IN = { "7ft": [77, 38.5], "8ft": [88, 44], "9ft": [100, 50] };
+const SVG_POS_X     = { "left": 38, "slight-left": 76, "center": 120, "slight-right": 164, "right": 202 };
+const RACK_LABELS   = { "8ball": "8-ball", "9ball": "9-ball", "9ball-9spot": "9 on spot", "10ball": "10-ball", "custom": "Other" };
+const POS_LABELS    = { "center": "Center", "slight-left": "Sl. Left", "left": "Left", "slight-right": "Sl. Right", "right": "Right" };
+
+function updateSetupSummary() {
+  const sizeLabel = setupState.tableMode === "custom"
+    ? `${setupState.customLengthIn}"×${setupState.customWidthIn}"`
+    : setupState.tableSize.replace("ft", " ft");
+  const rackLabel = RACK_LABELS[setupState.rackConfig] || setupState.rackConfig;
+  const posLabel  = POS_LABELS[setupState.breakPosition] || setupState.breakPosition;
+  const el = document.getElementById("setupSummary");
+  if (el) el.textContent = `${sizeLabel} · ${rackLabel} · ${posLabel}`;
+}
+
+function applySetupToUI() {
+  document.querySelectorAll("#setupTableSize .setup-btn").forEach(btn => {
+    const isCustom = setupState.tableMode === "custom";
+    btn.classList.toggle("active", isCustom ? btn.dataset.val === "custom" : btn.dataset.val === setupState.tableSize);
+  });
+  const customWrap = document.getElementById("setupCustomWrap");
+  if (customWrap) customWrap.hidden = setupState.tableMode !== "custom";
+  document.querySelectorAll("#setupRackConfig .setup-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.val === setupState.rackConfig);
+  });
+  document.querySelectorAll("#setupPosRow .pos-btn").forEach(btn => {
+    btn.classList.toggle("pos-btn-active", btn.dataset.pos === setupState.breakPosition);
+  });
+
+  const px = SVG_POS_X[setupState.breakPosition] ?? 120;
+  document.querySelectorAll(".svgPos").forEach(circle => {
+    const active = circle.dataset.pos === setupState.breakPosition;
+    if (active) {
+      circle.setAttribute("fill", "var(--accent)");
+      circle.setAttribute("stroke", "none");
+      circle.setAttribute("r", "11");
+      circle.setAttribute("opacity", "0.85");
+    } else {
+      circle.setAttribute("fill", "rgba(255,255,255,.06)");
+      circle.setAttribute("stroke", "rgba(255,255,255,.3)");
+      circle.setAttribute("stroke-width", "1.5");
+      circle.setAttribute("r", "10");
+      circle.setAttribute("opacity", "1");
+    }
+  });
+  const pathEl = document.getElementById("svgBallPath");
+  if (pathEl) { pathEl.setAttribute("x1", String(px)); pathEl.setAttribute("x2", "120"); }
+  updateSetupSummary();
+}
+
+let saveSetupTimer = null;
+function saveSetupToProfile() {
+  if (!activeProfile) return;
+  clearTimeout(saveSetupTimer);
+  saveSetupTimer = setTimeout(() => {
+    try {
+      const updated = store.updateProfile(activeProfile.id, { breakSetup: setupState });
+      const idx = profiles.findIndex(p => p.id === activeProfile.id);
+      if (idx >= 0) profiles[idx] = updated;
+      activeProfile = updated;
+    } catch { /* non-fatal */ }
+  }, 600);
+}
+
+function loadSetupFromProfile() {
+  if (activeProfile?.breakSetup) {
+    setupState = { ...DEFAULT_BREAK_SETUP, ...activeProfile.breakSetup };
+  } else {
+    setupState = { ...DEFAULT_BREAK_SETUP };
+  }
+  applySetupToUI();
+  syncWheelPickerValues();
+}
+
+// ─── Wheel Picker ─────────────────────────────────────────────────────────────
+function initWheelPicker(trackId, { min, max, step, initValue, onChange }) {
+  const track = document.getElementById(trackId);
+  if (!track) return;
+  const items = [];
+  for (let v = min; v <= max; v += step) items.push(v);
+  const topGhost = document.createElement("div"); topGhost.className = "wheel-ghost";
+  const botGhost = document.createElement("div"); botGhost.className = "wheel-ghost";
+  track.innerHTML = "";
+  track.appendChild(topGhost);
+  items.forEach(v => {
+    const el = document.createElement("div");
+    el.className = "wheel-item";
+    el.textContent = String(v);
+    el.dataset.val = String(v);
+    track.appendChild(el);
+  });
+  track.appendChild(botGhost);
+
+  const scrollToIdx = (idx) => {
+    const clamped = Math.max(0, Math.min(idx, items.length - 1));
+    track.scrollTop = clamped * 44;
+    track.querySelectorAll(".wheel-item").forEach((el, i) => el.classList.toggle("selected", i === clamped));
+  };
+
+  const initIdx = items.indexOf(initValue);
+  scrollToIdx(initIdx >= 0 ? initIdx : 0);
+  requestAnimationFrame(() => scrollToIdx(initIdx >= 0 ? initIdx : 0));
+
+  let scrollTimer = null;
+  track.addEventListener("scroll", () => {
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => {
+      const idx     = Math.round(track.scrollTop / 44);
+      const clamped = Math.max(0, Math.min(idx, items.length - 1));
+      track.querySelectorAll(".wheel-item").forEach((el, i) => el.classList.toggle("selected", i === clamped));
+      onChange(items[clamped]);
+    }, 80);
+  }, { passive: true });
+}
+
+function syncWheelPickerValues() {
+  const lenTrack = document.getElementById("wheelLengthTrack");
+  const widTrack = document.getElementById("wheelWidthTrack");
+  if (lenTrack) {
+    const items = [...lenTrack.querySelectorAll(".wheel-item")].map(el => +el.dataset.val);
+    const idx = items.indexOf(setupState.customLengthIn);
+    if (idx >= 0) lenTrack.scrollTop = idx * 44;
+  }
+  if (widTrack) {
+    const items = [...widTrack.querySelectorAll(".wheel-item")].map(el => +el.dataset.val);
+    const idx = items.indexOf(setupState.customWidthIn);
+    if (idx >= 0) widTrack.scrollTop = idx * 44;
+  }
+}
+
+function initBreakSetup() {
+  initWheelPicker("wheelLengthTrack", {
+    min: 70, max: 120, step: 1, initValue: setupState.customLengthIn,
+    onChange(v) { setupState.customLengthIn = v; updateSetupSummary(); saveSetupToProfile(); },
+  });
+  initWheelPicker("wheelWidthTrack", {
+    min: 35, max: 60, step: 1, initValue: setupState.customWidthIn,
+    onChange(v) { setupState.customWidthIn = v; updateSetupSummary(); saveSetupToProfile(); },
+  });
+  document.querySelectorAll("#setupTableSize .setup-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const val = btn.dataset.val;
+      if (val === "custom") { setupState.tableMode = "custom"; }
+      else { setupState.tableMode = "standard"; setupState.tableSize = val; }
+      applySetupToUI(); saveSetupToProfile();
+    });
+  });
+  document.querySelectorAll("#setupRackConfig .setup-btn").forEach(btn => {
+    btn.addEventListener("click", () => { setupState.rackConfig = btn.dataset.val; applySetupToUI(); saveSetupToProfile(); });
+  });
+  document.querySelectorAll("#svgPositions [data-pos]").forEach(el => {
+    el.addEventListener("click", () => { setupState.breakPosition = el.dataset.pos; applySetupToUI(); saveSetupToProfile(); });
+  });
+  document.querySelectorAll("#setupPosRow .pos-btn").forEach(btn => {
+    btn.addEventListener("click", () => { setupState.breakPosition = btn.dataset.pos; applySetupToUI(); saveSetupToProfile(); });
+  });
+  applySetupToUI();
+}
+
+// ─── How It Works Onboarding ──────────────────────────────────────────────────
+const HIW_STORAGE_KEY = "bsa_hiw_done";
+const HIW_TOTAL_STEPS = 5;
+
+const hiwOverlay     = document.getElementById("hiwOverlay");
+const hiwDotEls      = document.querySelectorAll("#hiwDots .hiw-dot");
+const hiwNextBtn     = document.getElementById("hiwNext");
+const hiwBackBtn     = document.getElementById("hiwBack");
+const hiwSkipBtn     = document.getElementById("hiwSkip");
+const hiwCloseBtn    = document.getElementById("hiwClose");
+const heroHiwBtn     = document.getElementById("heroHiwBtn");
+const settingsHiwBtn = document.getElementById("settingsHiwBtn");
+
+let hiwCurrentStep = 0;
+
+function showHiw(startStep = 0) {
+  hiwCurrentStep = startStep;
+  _updateHiw();
+  hiwOverlay.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+
+function closeHiw(markDone = true) {
+  hiwOverlay.hidden = true;
+  document.body.style.overflow = "";
+  if (markDone) { try { localStorage.setItem(HIW_STORAGE_KEY, "1"); } catch {} }
+}
+
+function _updateHiw() {
+  for (let i = 0; i < HIW_TOTAL_STEPS; i++) {
+    const el = document.getElementById("hiwStep" + i);
+    if (el) el.hidden = (i !== hiwCurrentStep);
+  }
+  hiwDotEls.forEach((dot, i) => {
+    dot.classList.toggle("active", i === hiwCurrentStep);
+    dot.classList.toggle("done",   i < hiwCurrentStep);
+  });
+  hiwBackBtn.hidden = (hiwCurrentStep === 0);
+  const isLast = hiwCurrentStep === HIW_TOTAL_STEPS - 1;
+  hiwSkipBtn.hidden = isLast;
+  hiwNextBtn.textContent = isLast ? "Got it ✓" : "Next";
+}
+
+hiwNextBtn.addEventListener("click", () => {
+  if (hiwCurrentStep < HIW_TOTAL_STEPS - 1) { hiwCurrentStep++; _updateHiw(); }
+  else closeHiw(true);
+});
+hiwBackBtn.addEventListener("click", () => { if (hiwCurrentStep > 0) { hiwCurrentStep--; _updateHiw(); } });
+hiwSkipBtn.addEventListener("click",  () => closeHiw(true));
+hiwCloseBtn.addEventListener("click", () => closeHiw(true));
+hiwOverlay.addEventListener("click",  e => { if (e.target === hiwOverlay) closeHiw(true); });
+heroHiwBtn.addEventListener("click",  () => showHiw(0));
+settingsHiwBtn.addEventListener("click", () => { settingsOverlay.hidden = true; showHiw(0); });
+
+function checkFirstVisit() {
+  try { if (!localStorage.getItem(HIW_STORAGE_KEY)) showHiw(0); } catch {}
+}
+
+// ─── Trend Charts ─────────────────────────────────────────────────────────────
+const trendsSection      = document.getElementById("trendsSection");
+const trendsRangeBtns    = document.getElementById("trendsRangeBtns");
+const speedModeBtns      = document.getElementById("speedModeBtns");
+const consistRollingBtns = document.getElementById("consistRollingBtns");
+const speedSummary       = document.getElementById("speedSummary");
+const speedEmpty         = document.getElementById("speedEmpty");
+const consistEmpty       = document.getElementById("consistEmpty");
+
+let activeTrendRange  = "10";
+let activeSpeedMode   = "rankable";
+let activeConsistRoll = "off";
+let speedChartInst    = null;
+let consistChartInst  = null;
+
+function applyChartDefaults() {
+  if (typeof Chart === "undefined") return;
+  Chart.defaults.color       = "#6a7a96";
+  Chart.defaults.borderColor = "rgba(255,255,255,0.06)";
+  Chart.defaults.font.family = "'Inter', 'SF Pro Text', system-ui, sans-serif";
+  Chart.defaults.font.size   = 11;
+  Chart.defaults.plugins.tooltip.backgroundColor = "#0f1420";
+  Chart.defaults.plugins.tooltip.borderColor     = "#1e2840";
+  Chart.defaults.plugins.tooltip.borderWidth     = 1;
+  Chart.defaults.plugins.tooltip.titleColor      = "#e8eef8";
+  Chart.defaults.plugins.tooltip.bodyColor       = "#6a7a96";
+  Chart.defaults.plugins.tooltip.padding         = 10;
+  Chart.defaults.plugins.legend.display          = false;
+}
+
+const TIER_POINT_COLOR = { high: "#00d4ff", near_high: "#ff8c20", medium: "#7b9bb5", session_avg: "#00d4ff" };
+function tierPointColors(data, field = "confidenceTier") {
+  return data.map(d => TIER_POINT_COLOR[d[field]] || "#00d4ff");
+}
+
+function hexGradient(canvas, hex, a1 = 0.20, a2 = 0) {
+  const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+  const ctx  = canvas.getContext("2d");
+  const grad = ctx.createLinearGradient(0, 0, 0, 160);
+  grad.addColorStop(0, `rgba(${r},${g},${b},${a1})`);
+  grad.addColorStop(1, `rgba(${r},${g},${b},${a2})`);
+  return grad;
+}
+
+function fmtChartDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function rollingAvg(vals, window = 3) {
+  return vals.map((_, i) => {
+    const slice = vals.slice(Math.max(0, i - window + 1), i + 1);
+    return slice.reduce((s, v) => s + v, 0) / slice.length;
+  });
+}
+
+function trendDirection(speeds) {
+  if (speeds.length < 4) return "flat";
+  const half  = Math.floor(speeds.length / 2);
+  const first = speeds.slice(0, half).reduce((s, v) => s + v, 0) / half;
+  const last  = speeds.slice(-half).reduce((s, v) => s + v, 0) / half;
+  const delta = last - first;
+  if (delta > 0.8) return "up";
+  if (delta < -0.8) return "down";
+  return "flat";
+}
+
+function renderSpeedSummary(data) {
+  if (!data.length) { speedSummary.hidden = true; return; }
+  const speeds = data.map(d => d.speed);
+  const avg    = speeds.reduce((s, v) => s + v, 0) / speeds.length;
+  const best   = Math.max(...speeds);
+  const dir    = trendDirection(speeds);
+  const dirLabels  = { up: "↑ Improving", flat: "→ Stable", down: "↓ Mixed" };
+  const dirClasses = { up: "up", flat: "flat", down: "down" };
+  speedSummary.innerHTML =
+    `<div class="trend-chip"><span class="trend-chip-val">${fmtStat(avg)}</span><span class="trend-chip-lbl">Range avg</span></div>` +
+    `<div class="trend-chip"><span class="trend-chip-val">${fmtStat(best)}</span><span class="trend-chip-lbl">Range best</span></div>` +
+    `<div class="trend-chip"><span class="trend-chip-dir ${dirClasses[dir]}">${dirLabels[dir]}</span><span class="trend-chip-lbl">Trend</span></div>`;
+  speedSummary.hidden = false;
+}
+
+function buildSpeedChart(data) {
+  const canvas = document.getElementById("speedChart");
+  if (!canvas) return;
+  if (speedChartInst) { speedChartInst.destroy(); speedChartInst = null; }
+  if (!data.length) {
+    speedEmpty.hidden = false;
+    canvas.parentElement.style.display = "none";
+    speedSummary.hidden = true;
+    return;
+  }
+  speedEmpty.hidden = true;
+  canvas.parentElement.style.display = "";
+  renderSpeedSummary(data);
+
+  const labels      = data.map(d => fmtChartDate(d.timestamp));
+  const speeds      = data.map(d => d.speed);
+  const pointColors = tierPointColors(data);
+
+  speedChartInst = new Chart(canvas, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        data: speeds,
+        borderColor: "#00d4ff",
+        backgroundColor: hexGradient(canvas, "#00d4ff", 0.18, 0),
+        pointBackgroundColor: pointColors,
+        pointBorderColor:     pointColors,
+        pointRadius:      data.length > 30 ? 2 : 4,
+        pointHoverRadius: 6,
+        borderWidth: 2,
+        tension: 0.35,
+        fill: true,
+      }],
+    },
+    options: {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            title:  items => fmtChartDate(data[items[0].dataIndex].timestamp),
+            label:  items => {
+              const pt = data[items[0].dataIndex];
+              return `${convertSpeed(pt.speed).toFixed(1)} ${settings.units}  ·  ${confLabel(pt.confidenceTier)}`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 6, maxRotation: 0, color: "#6a7a96", font: { size: 10 } }, grid: { color: "rgba(255,255,255,0.04)" } },
+        y: { ticks: { color: "#6a7a96", font: { size: 10 }, callback: v => convertSpeed(v).toFixed(0) }, grid: { color: "rgba(255,255,255,0.04)" } },
+      },
+    },
+  });
+}
+
+function buildConsistChart(rawData, rolling) {
+  const canvas = document.getElementById("consistChart");
+  if (!canvas) return;
+  if (consistChartInst) { consistChartInst.destroy(); consistChartInst = null; }
+  if (!rawData.length) {
+    consistEmpty.hidden = false;
+    canvas.parentElement.style.display = "none";
+    return;
+  }
+  consistEmpty.hidden = true;
+  canvas.parentElement.style.display = "";
+
+  const labels = rawData.map(d => fmtChartDate(d.timestamp));
+  let   values = rawData.map(d => d.consistency);
+  if (rolling === "on") values = rollingAvg(values, 3);
+
+  const color = "#6bcb77";
+  consistChartInst = new Chart(canvas, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        borderColor: color,
+        backgroundColor: hexGradient(canvas, color, 0.15, 0),
+        pointBackgroundColor: color,
+        pointBorderColor:     color,
+        pointRadius:      rawData.length > 30 ? 2 : 4,
+        pointHoverRadius: 6,
+        borderWidth: 2,
+        tension: 0.35,
+        fill: true,
+      }],
+    },
+    options: {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            title:  items => fmtChartDate(rawData[items[0].dataIndex].timestamp),
+            label:  items => {
+              const v  = values[items[0].dataIndex];
+              const pt = rawData[items[0].dataIndex];
+              return `σ ${convertSpeed(v).toFixed(2)} ${settings.units}  ·  ${pt.attemptCount} attempts`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 6, maxRotation: 0, color: "#6a7a96", font: { size: 10 } }, grid: { color: "rgba(255,255,255,0.04)" } },
+        y: { reverse: false, ticks: { color: "#6a7a96", font: { size: 10 }, callback: v => convertSpeed(v).toFixed(1) }, grid: { color: "rgba(255,255,255,0.04)" } },
+      },
+    },
+  });
+}
+
+function loadTrends() {
+  if (!activeProfile) { trendsSection.hidden = true; return; }
+  if (typeof Chart === "undefined") return;
+  applyChartDefaults();
+  trendsSection.hidden = false;
+
+  try {
+    const speedData   = store.getTrendSpeed(activeProfile.id, activeTrendRange, activeSpeedMode);
+    const consistData = store.getTrendConsistency(activeProfile.id, activeTrendRange);
+    buildSpeedChart(speedData);
+    buildConsistChart(consistData, activeConsistRoll);
+  } catch (err) {
+    console.warn("loadTrends error", err);
+  }
+}
+
+function setActiveBtn(group, attr, value) {
+  group.querySelectorAll(".tr-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset[attr] === value);
+  });
+}
+
+trendsRangeBtns.addEventListener("click", e => {
+  const btn = e.target.closest(".tr-btn");
+  if (!btn) return;
+  activeTrendRange = btn.dataset.range;
+  setActiveBtn(trendsRangeBtns, "range", activeTrendRange);
+  loadTrends();
+});
+
+speedModeBtns.addEventListener("click", e => {
+  const btn = e.target.closest(".tr-btn");
+  if (!btn) return;
+  activeSpeedMode = btn.dataset.mode;
+  setActiveBtn(speedModeBtns, "mode", activeSpeedMode);
+  loadTrends();
+});
+
+consistRollingBtns.addEventListener("click", e => {
+  const btn = e.target.closest(".tr-btn");
+  if (!btn) return;
+  activeConsistRoll = btn.dataset.rolling;
+  setActiveBtn(consistRollingBtns, "rolling", activeConsistRoll);
+  loadTrends();
+});
+
+// ─── Service Worker registration ──────────────────────────────────────────────
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+initSettings();
+initBreakSetup();
+loadProfiles().then(() => {
+  loadSetupFromProfile();
+  showScreen(screenHero);
+  checkFirstVisit();
+});
