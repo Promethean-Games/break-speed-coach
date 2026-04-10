@@ -200,16 +200,17 @@
         <span class="hiw-dot" data-step="2"></span>
         <span class="hiw-dot" data-step="3"></span>
         <span class="hiw-dot" data-step="4"></span>
+        <span class="hiw-dot" data-step="5"></span>
       </div>
 
-      <!-- Step 0 — What We Measure -->
+      <!-- Step 0 — Measure Your Break -->
       <div class="hiw-step" id="hiwStep0">
         <div class="hiw-step-icon hiw-icon-measure">◎</div>
-        <div class="hiw-step-title">What We Measure</div>
+        <div class="hiw-step-title">Measure Your Break</div>
         <div class="hiw-step-body">
-          <p>This app estimates break speed from the sound of your break shot — no extra hardware needed.</p>
-          <p>It detects the cue-ball strike and rack scatter in your phone's microphone to calculate impact speed.</p>
-          <p class="hiw-note">Results are confidence-based estimates, not radar-gun measurements. Use them as training feedback.</p>
+          <p>Your phone's mic listens to the break. An audio engine detects the cue-ball strike and rack scatter, then calculates impact speed.</p>
+          <p><strong>No hardware. No radar gun. Just your phone.</strong></p>
+          <p class="hiw-note">Readings are speed estimates, not radar measurements. Use them as consistent training feedback.</p>
         </div>
       </div>
 
@@ -218,49 +219,35 @@
         <div class="hiw-step-icon hiw-icon-phone">◐</div>
         <div class="hiw-step-title">Phone Placement</div>
         <div class="hiw-step-body">
-          <!-- Vertical table diagram — phone on RACK/FOOT end rail -->
           <svg class="hiw-placement-svg" viewBox="0 0 200 260" preserveAspectRatio="xMidYMid meet" aria-label="Place phone on the foot-end rail near the rack">
-            <!-- Table frame -->
             <rect x="4" y="4" width="192" height="252" rx="10" fill="#162e22" stroke="rgba(255,255,255,.14)" stroke-width="1.5"/>
-            <!-- Inner felt -->
             <rect x="22" y="22" width="156" height="208" rx="5" fill="#1e5738" stroke="rgba(255,255,255,.05)" stroke-width="1"/>
-            <!-- Head string (horizontal) — 1/4 from top -->
             <line x1="24" y1="74" x2="178" y2="74" stroke="rgba(255,255,255,.18)" stroke-width="1.2" stroke-dasharray="5,4"/>
-            <!-- Foot spot -->
             <circle cx="100" cy="178" r="3.5" fill="rgba(255,255,255,.35)"/>
-            <!-- Cue ball at head string center -->
             <circle cx="100" cy="74" r="5" fill="rgba(255,255,255,.65)" stroke="rgba(255,255,255,.9)" stroke-width=".8"/>
-            <!-- Rack triangle: apex at foot spot pointing toward head string, base toward foot rail -->
-            <!-- Row 1 — apex -->
             <circle cx="100" cy="178" r="4"   fill="rgba(255,255,255,.28)" stroke="rgba(255,255,255,.5)"  stroke-width=".8"/>
-            <!-- Row 2 — 2 balls, one row below apex (toward foot) -->
             <circle cx="96"  cy="185" r="4"   fill="rgba(255,255,255,.18)" stroke="rgba(255,255,255,.32)" stroke-width=".8"/>
             <circle cx="104" cy="185" r="4"   fill="rgba(255,255,255,.18)" stroke="rgba(255,255,255,.32)" stroke-width=".8"/>
-            <!-- Row 3 — 3 balls, two rows below apex -->
             <circle cx="92"  cy="192" r="3.5" fill="rgba(255,255,255,.1)"  stroke="rgba(255,255,255,.2)"  stroke-width=".8"/>
             <circle cx="100" cy="192" r="3.5" fill="rgba(255,255,255,.1)"  stroke="rgba(255,255,255,.2)"  stroke-width=".8"/>
             <circle cx="108" cy="192" r="3.5" fill="rgba(255,255,255,.1)"  stroke="rgba(255,255,255,.2)"  stroke-width=".8"/>
-            <!-- ══ PHONE ZONE — BOTTOM RAIL (foot/rack end) ══ -->
             <rect x="52" y="231" width="96" height="23" rx="7"   fill="none"                  stroke="rgba(0,215,255,.22)" stroke-width="2"   stroke-dasharray="4,3"/>
             <rect x="55" y="233" width="90" height="19" rx="5.5" fill="rgba(0,215,255,.14)"  stroke="rgba(0,215,255,.7)"  stroke-width="1.3"/>
-            <!-- Phone body (landscape on the rail) -->
             <rect x="65" y="236" width="24" height="14" rx="2.5" fill="rgba(0,215,255,.32)"  stroke="rgba(0,215,255,.95)" stroke-width="1.1"/>
             <rect x="68"  y="239" width="18" height="7"  rx="1"  fill="rgba(0,215,255,.1)"/>
             <circle cx="86" cy="247" r="1.3" fill="rgba(0,215,255,.8)"/>
             <text x="96" y="245" font-size="7" fill="rgba(0,215,255,.85)" font-family="sans-serif" font-weight="700">PHONE</text>
-            <!-- Do-not-place X at head end (top rail) -->
             <circle cx="100" cy="13" r="9"  fill="rgba(255,50,50,.1)"  stroke="rgba(255,80,80,.45)" stroke-width="1"/>
             <line x1="95" y1="8"  x2="105" y2="18" stroke="rgba(255,80,80,.7)" stroke-width="1.5" stroke-linecap="round"/>
             <line x1="105" y1="8" x2="95"  y2="18" stroke="rgba(255,80,80,.7)" stroke-width="1.5" stroke-linecap="round"/>
-            <!-- Legend -->
             <text x="100" y="48"  font-size="6.5" fill="rgba(255,255,255,.28)" text-anchor="middle" font-family="monospace" font-weight="bold">CUE END</text>
             <text x="100" y="220" font-size="6.5" fill="rgba(255,255,255,.28)" text-anchor="middle" font-family="monospace" font-weight="bold">RACK END → PHONE HERE</text>
           </svg>
-          <p class="hiw-placement-caption">Place your phone flat on the <strong>rail near the rack</strong>, mic side facing the table.</p>
+          <p class="hiw-placement-caption">Flat on the <strong>rail near the rack</strong>, mic side facing the table.</p>
           <ul class="hiw-tips">
-            <li>Same spot every attempt for consistent readings</li>
-            <li>Stable surface only — not handheld or leaning</li>
-            <li>Don't touch the phone during recording</li>
+            <li>Same spot every session for consistent data</li>
+            <li>Stable surface only — never handheld</li>
+            <li>Don't touch the phone while recording</li>
             <li>Record <strong>3 breaks per session</strong> for the best read</li>
           </ul>
         </div>
@@ -269,17 +256,17 @@
       <!-- Step 2 — Confidence Tiers -->
       <div class="hiw-step" id="hiwStep2" hidden>
         <div class="hiw-step-icon hiw-icon-conf">●</div>
-        <div class="hiw-step-title">Understanding Confidence</div>
+        <div class="hiw-step-title">Confidence Tiers</div>
         <div class="hiw-step-body">
-          <p>Every reading gets a confidence tier based on how clearly the impact was detected.</p>
+          <p>Every reading is scored on how cleanly the impact was detected.</p>
           <div class="hiw-badges">
             <div class="hiw-badge-row">
               <span class="badge badge-high">● HIGH</span>
-              <span class="hiw-badge-desc">Strongest reading — trust this number</span>
+              <span class="hiw-badge-desc">Cleanest read — trust this number</span>
             </div>
             <div class="hiw-badge-row">
               <span class="badge badge-near">◐ NEAR-HIGH</span>
-              <span class="hiw-badge-desc">Very usable — use with context</span>
+              <span class="hiw-badge-desc">Very solid — use with context</span>
             </div>
             <div class="hiw-badge-row">
               <span class="badge badge-med">◑ MEDIUM</span>
@@ -287,46 +274,81 @@
             </div>
             <div class="hiw-badge-row">
               <span class="badge badge-low">○ LOW</span>
-              <span class="hiw-badge-desc">Retake suggested when possible</span>
+              <span class="hiw-badge-desc">Noisy read — retake if you can</span>
             </div>
           </div>
+          <p class="hiw-note">Only HIGH-confidence breaks count toward your benchmark and Ideal Zone.</p>
         </div>
       </div>
 
-      <!-- Step 3 — Reading Results -->
+      <!-- Step 3 — Tag Your Outcomes -->
       <div class="hiw-step" id="hiwStep3" hidden>
-        <div class="hiw-step-icon hiw-icon-results">≈</div>
-        <div class="hiw-step-title">Reading Your Results</div>
+        <div class="hiw-step-icon hiw-icon-results">✓</div>
+        <div class="hiw-step-title">Tag Your Outcomes</div>
         <div class="hiw-step-body">
+          <p>After each session, a quick tag sheet appears. Mark what actually happened on the table.</p>
           <div class="hiw-result-rows">
             <div class="hiw-result-row">
-              <span class="hiw-result-lbl">Best Break</span>
-              <span class="hiw-result-desc">Strongest single reading from the session</span>
+              <span class="hiw-result-lbl">Scratch</span>
+              <span class="hiw-result-desc">Cue ball in the pocket</span>
             </div>
             <div class="hiw-result-row">
-              <span class="hiw-result-lbl">Session Avg</span>
-              <span class="hiw-result-desc">Average across all rankable reads (HIGH, NEAR-HIGH, MEDIUM)</span>
+              <span class="hiw-result-lbl">Ball Pocketed</span>
+              <span class="hiw-result-desc">At least one object ball dropped</span>
+            </div>
+            <div class="hiw-result-row">
+              <span class="hiw-result-lbl">Break &amp; Run</span>
+              <span class="hiw-result-desc">Cleared the table from the break</span>
+            </div>
+            <div class="hiw-result-row">
+              <span class="hiw-result-lbl">Money Ball</span>
+              <span class="hiw-result-desc">8, 9, or 10 ball dropped on the break</span>
+            </div>
+          </div>
+          <p class="hiw-note">These tags feed the coaching algorithm. The more you tag, the smarter it gets.</p>
+        </div>
+      </div>
+
+      <!-- Step 4 — Your Coaching Dashboard -->
+      <div class="hiw-step" id="hiwStep4" hidden>
+        <div class="hiw-step-icon hiw-icon-trend">▲</div>
+        <div class="hiw-step-title">Your Coaching Dashboard</div>
+        <div class="hiw-step-body">
+          <p>Every session builds your personal coaching picture.</p>
+          <div class="hiw-result-rows">
+            <div class="hiw-result-row">
+              <span class="hiw-result-lbl">Benchmark</span>
+              <span class="hiw-result-desc">Your best HIGH-confidence break ever recorded</span>
+            </div>
+            <div class="hiw-result-row">
+              <span class="hiw-result-lbl">Zone Gauge</span>
+              <span class="hiw-result-desc">Latest break shown as Below / In Zone / Above your range</span>
             </div>
             <div class="hiw-result-row">
               <span class="hiw-result-lbl">Consistency</span>
-              <span class="hiw-result-desc">How repeatable your speeds are — lower variation means a more repeatable break</span>
+              <span class="hiw-result-desc">Dots for your last 10 breaks — in-zone or out</span>
+            </div>
+            <div class="hiw-result-row">
+              <span class="hiw-result-lbl">Speed Trends</span>
+              <span class="hiw-result-desc">Chart of your improvement over time</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Step 4 — Track Progress -->
-      <div class="hiw-step" id="hiwStep4" hidden>
-        <div class="hiw-step-icon hiw-icon-trend">↗</div>
-        <div class="hiw-step-title">Track Your Progress</div>
+      <!-- Step 5 — The Ideal Zone -->
+      <div class="hiw-step" id="hiwStep5" hidden>
+        <div class="hiw-step-icon hiw-icon-measure">✦</div>
+        <div class="hiw-step-title">The Ideal Zone</div>
         <div class="hiw-step-body">
-          <p>Create a player profile to automatically save every session.</p>
+          <p>Tag enough breaks and the app learns which speed range gives you real results — balls dropping, racks opening, runs happening.</p>
+          <p><strong>That range becomes your Ideal Zone.</strong></p>
           <ul class="hiw-tips">
-            <li>View your full <strong>break history</strong> session by session</li>
-            <li>See <strong>speed and consistency trend charts</strong> over time</li>
-            <li>Add multiple profiles for different players or setups</li>
+            <li>Unique to your game, your table, your rack</li>
+            <li>Updates automatically as you keep playing</li>
+            <li>Add player profiles to track multiple shooters</li>
           </ul>
-          <p class="hiw-note">Tap the player pill at the top of any screen to create your first profile.</p>
+          <p class="hiw-note">Tap the player pill at the top of any screen to get started.</p>
         </div>
       </div>
 
