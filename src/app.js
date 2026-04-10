@@ -2580,29 +2580,19 @@ function closeProModal() {
 }
 
 async function handleProUpgrade() {
-  proModalCtaText.textContent = "Processing…";
+  proModalCtaText.textContent = "Redirecting to payment…";
   proModalSpinner.hidden = false;
   proModalCta.disabled = true;
   try {
-    const result = await BILLING.initiateCheckout();
-    if (result.success) {
-      closeProModal();
-      applyProGating();
-      showToast("Pro unlocked — welcome to the next level!");
-      // Reload dashboard to show full content
-      if (!screenDashboard.hidden) {
-        loadHistory().then(() => {
-          loadStats().then(() => {
-            loadTrends();
-          });
-        });
-      }
-    }
+    // initiateCheckout() redirects to Stripe Checkout — never returns normally.
+    // On payment success, Stripe sends the user back to /?pro=success&session_id=xxx
+    // which is handled by handleStripeReturn() on next page load.
+    await BILLING.initiateCheckout();
   } catch (err) {
     proModalCtaText.textContent = "Unlock Pro";
     proModalSpinner.hidden = true;
     proModalCta.disabled = false;
-    showToast("Purchase failed — please try again.");
+    showToast("Could not start checkout — please try again.");
   }
 }
 
@@ -2701,6 +2691,44 @@ settingsProBtn.addEventListener("click", () => {
   }
 });
 
+// ─── Stripe Return Handler ─────────────────────────────────────────────────────
+// Runs on page load to handle Stripe's success/cancel redirect.
+async function handleStripeReturn() {
+  const params = new URLSearchParams(window.location.search);
+  const proParam    = params.get("pro");
+  const sessionId   = params.get("session_id");
+
+  if (!proParam) return;
+
+  // Clean the URL so the params don't persist on refresh
+  const cleanUrl = window.location.pathname;
+  history.replaceState(null, "", cleanUrl);
+
+  if (proParam === "cancel") {
+    showToast("Payment cancelled — no charge made.");
+    return;
+  }
+
+  if (proParam === "success" && sessionId) {
+    showToast("Verifying your payment…");
+    try {
+      const result = await BILLING.verifySession(sessionId);
+      if (result.verified) {
+        applyProGating();
+        showToast("Pro unlocked — thank you!");
+        // Reload dashboard data if user is on Stats screen
+        if (!screenDashboard.hidden) {
+          loadHistory().then(() => loadStats().then(() => loadTrends()));
+        }
+      } else {
+        showToast("Payment could not be verified — please contact support.");
+      }
+    } catch {
+      showToast("Verification error — please try again or contact support.");
+    }
+  }
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 initSettings();
 initBreakSetup();
@@ -2710,4 +2738,5 @@ loadProfiles().then(() => {
   loadSetupFromProfile();
   showScreen(screenHero);
   checkFirstVisit();
+  handleStripeReturn();
 });
