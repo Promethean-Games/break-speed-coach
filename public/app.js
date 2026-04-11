@@ -111,7 +111,7 @@ let tagRackConfig   = null;   // rackConfig for money-ball label
 let tagBestSpeed    = null;   // best speed for subtitle display
 let tagBestConf     = null;   // confidence of best reading
 let tagSheetTimer   = null;   // delayed show timer
-let tagToggles      = { scratched: false, objectBallPocketed: false, breakAndRun: false, moneyBallOnBreak: false };
+let tagToggles      = { scratched: false, objectBallPocketed: false, moneyBallOnBreak: false };
 
 // History state
 let historyData    = [];
@@ -1667,7 +1667,6 @@ function renderTagRows(rackConfig) {
   const rowDefs = [
     { key: "scratched",          label: "Scratch",       note: "cue ball in pocket", danger: true  },
     { key: "objectBallPocketed", label: "Ball Pocketed", note: "≥1 object ball in",  danger: false },
-    { key: "breakAndRun",        label: "Break & Run",   note: "cleared the table",  danger: false },
     { key: "moneyBallOnBreak",   label: moneyLabel,      note: "money ball on break",danger: false },
   ];
 
@@ -1703,7 +1702,7 @@ function showTagSheet(sessionId, profileId, rackConfig, bestSpeed, bestConf) {
   tagBestSpeed  = bestSpeed;
   tagBestConf   = bestConf;
   // Reset all toggles to "No"
-  tagToggles = { scratched: false, objectBallPocketed: false, breakAndRun: false, moneyBallOnBreak: false };
+  tagToggles = { scratched: false, objectBallPocketed: false, moneyBallOnBreak: false };
 
   if (tagSubtitle) {
     if (bestSpeed != null) {
@@ -1733,7 +1732,6 @@ async function saveOutcomeTags() {
       profileId:          tagProfileId,
       scratched:          tagToggles.scratched,
       objectBallPocketed: tagToggles.objectBallPocketed,
-      breakAndRun:        tagToggles.breakAndRun,
       moneyBallOnBreak:   tagToggles.moneyBallOnBreak,
       gameMode:           tagRackConfig,
     });
@@ -1987,7 +1985,7 @@ function applySetupToUI() {
   });
   const pathEl  = document.getElementById("svgBallPath");
   if (pathEl) { pathEl.setAttribute("x1", String(px)); pathEl.setAttribute("x2", "120"); }
-  // Arrow stays fixed pointing down at foot spot (y=202→212)
+  // Arrow stays fixed pointing up at foot spot (cy=86, rack end at top)
 
   updateSetupSummary();
 }
@@ -2131,10 +2129,15 @@ function initBreakSetup() {
     });
   });
 
-  // Rack config buttons
+  // Rack config buttons — 9-on-spot and 10-ball are Pro only
   document.querySelectorAll("#setupRackConfig .setup-btn").forEach(btn => {
     btn.addEventListener("click", () => {
-      setupState.rackConfig = btn.dataset.val;
+      const val = btn.dataset.val;
+      if ((val === "9ball-9spot" || val === "10ball") && !BILLING.isProUser()) {
+        openUpgradeModal();
+        return;
+      }
+      setupState.rackConfig = val;
       applySetupToUI();
       saveSetupToProfile();
     });
