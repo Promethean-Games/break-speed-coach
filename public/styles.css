@@ -3270,6 +3270,66 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
 }
 .pro-modal-restore:hover { color: rgba(255,255,255,.6); }
 
+.pro-modal-restore-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+  animation: fadeIn .18s ease;
+}
+.pro-modal-restore-hint {
+  font-size: 12px;
+  color: rgba(255,255,255,.5);
+  margin: 0;
+  line-height: 1.5;
+  text-align: center;
+}
+.pro-modal-restore-email {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.07);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+}
+.pro-modal-restore-email:focus { border-color: var(--accent); }
+.pro-modal-restore-email::placeholder { color: rgba(255,255,255,.3); }
+.pro-modal-restore-row {
+  display: flex;
+  gap: 8px;
+}
+.pro-modal-restore-submit {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #0094ff, #6c3cdc);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.pro-modal-restore-submit:disabled { opacity: .6; cursor: default; }
+.pro-modal-restore-cancel {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255,255,255,.18);
+  background: transparent;
+  color: rgba(255,255,255,.5);
+  font-size: 13px;
+  cursor: pointer;
+}
+[data-theme="light"] .pro-modal-restore-email {
+  background: rgba(0,0,0,.04);
+  border-color: rgba(0,0,0,.14);
+  color: #1a2340;
+}
+[data-theme="light"] .pro-modal-restore-email::placeholder { color: rgba(0,0,0,.3); }
+
 /* ── History Pro teaser ───────────────────────────────────────────────────── */
 .hist-pro-teaser {
   display: flex;
