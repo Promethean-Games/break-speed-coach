@@ -321,6 +321,7 @@ function initSettings() {
         saveSettings(settings);
         c.querySelectorAll(".opt-btn").forEach(b => b.classList.toggle("active", b === btn));
         if (key === "theme") applyTheme();
+        if (key === "units") chalUpdateUnitLabels();
         if (key === "targetAttempts") { updateHeroSub(); syncTrackerDots(); }
         if (key === "tableSize") {
           if (settings.tableSize === "custom") {
@@ -1186,11 +1187,14 @@ async function runAnalysis(source) {
       if (resultsSavedTag) resultsSavedTag.hidden = true;
     }
 
+    // Update active challenge progress after a saved break
+    const best = data.session?.bestBreak || data.session?.topEstimate;
+    if (best?.speedMph != null) onBreakSaved(best.speedMph);
+
     // Show outcome tag sheet after a short delay so the user can see their result first
     clearTimeout(tagSheetTimer);
     if (data.savedSession?.sessionId && activeProfile) {
       const sid  = data.savedSession.sessionId;
-      const best = data.session?.bestBreak || data.session?.topEstimate;
       tagSheetTimer = setTimeout(
         () => showTagSheet(sid, activeProfile.id, setupState.rackConfig, best?.speedMph ?? null, best?.confidence ?? null),
         OUTCOME_CONFIG.TAG_DELAY_MS
@@ -2564,6 +2568,251 @@ consistRollingBtns.addEventListener("click", e => {
   setActiveBtn(consistRollingBtns, "rolling", activeConsistRoll);
   loadTrends();
 });
+
+// ─── Challenge Mode ──────────────────────────────────────────────────────────
+
+// State — always stored in mph internally; converted for display
+const challengeState = {
+  type:              null,   // "power" | "consistency"
+  active:            false,
+  targetSpeedMph:    0,
+  toleranceMph:      0,
+  requiredSuccesses: 3,
+  totalAttempts:     10,
+  successCount:      0,
+  attemptCount:      0,
+  result:            null,   // null | "complete" | "done"
+};
+
+// DOM refs
+const chalSetupEl       = document.getElementById("challengeSetup");
+const chalProgressEl    = document.getElementById("challengeProgress");
+const chalCompleteEl    = document.getElementById("challengeComplete");
+const chalTargetPow     = document.getElementById("chalTargetSpeedPow");
+const chalReqSuccesses  = document.getElementById("chalRequiredSuccesses");
+const chalTargetCon     = document.getElementById("chalTargetSpeedCon");
+const chalToleranceEl   = document.getElementById("chalTolerance");
+const chalTotalAtt      = document.getElementById("chalTotalAttempts");
+const chalStartBtn      = document.getElementById("challengeStartBtn");
+const chalCancelBtn     = document.getElementById("challengeCancelBtn");
+const chalNewBtn        = document.getElementById("challengeNewBtn");
+const chalProgressType  = document.getElementById("chalProgressType");
+const chalProgressTgt   = document.getElementById("chalProgressTarget");
+const chalProgressBar   = document.getElementById("chalProgressBar");
+const chalProgressStat  = document.getElementById("chalProgressStat");
+const chalProgressSub   = document.getElementById("chalProgressSub");
+const chalCompleteIcon  = document.getElementById("chalCompleteIcon");
+const chalCompleteTit   = document.getElementById("chalCompleteTitle");
+const chalCompleteSumm  = document.getElementById("chalCompleteSummary");
+const chalStripEl       = document.getElementById("challengeStrip");
+const chalStripBadge    = document.getElementById("chalStripBadge");
+const chalStripProgress = document.getElementById("chalStripProgress");
+const chalStripView     = document.getElementById("chalStripView");
+const chalStripCancel   = document.getElementById("chalStripCancel");
+
+// Active challenge type selection
+let activeChalType = "power";
+
+document.querySelectorAll(".challenge-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    activeChalType = tab.dataset.ctype;
+    document.querySelectorAll(".challenge-tab").forEach(t => t.classList.toggle("active", t === tab));
+    const powerFields  = document.getElementById("challengePowerFields");
+    const consistFields = document.getElementById("challengeConsistFields");
+    if (powerFields)  powerFields.hidden  = activeChalType !== "power";
+    if (consistFields) consistFields.hidden = activeChalType !== "consistency";
+    chalUpdateUnitLabels();
+  });
+});
+
+function chalUpdateUnitLabels() {
+  const u = settings.units || "mph";
+  document.querySelectorAll(".challenge-unit").forEach(el => { el.textContent = u; });
+  document.querySelectorAll(".challenge-unit-tol").forEach(el => { el.textContent = `±${u}`; });
+}
+
+// Convert user-entered value (in current units) to mph for storage
+function chalToMph(v) {
+  const u = settings.units || "mph";
+  if (u === "kph") return v / MPH_TO_KPH;
+  if (u === "fps") return v / MPH_TO_FPS;
+  if (u === "mps") return (v / MPH_TO_KPH) / 1000 * 3600;
+  return v;
+}
+
+// ── Show a view inside the challenge card ─────────────────────────────────────
+function chalShowView(view) {
+  if (chalSetupEl)    chalSetupEl.hidden    = view !== "setup";
+  if (chalProgressEl) chalProgressEl.hidden = view !== "progress";
+  if (chalCompleteEl) chalCompleteEl.hidden = view !== "complete";
+}
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+function startChallenge() {
+  if (activeChalType === "power") {
+    const tgt = parseFloat(chalTargetPow?.value);
+    const req = parseInt(chalReqSuccesses?.value, 10);
+    if (!tgt || tgt <= 0 || !req || req < 1) { showToast("Enter valid values."); return; }
+    Object.assign(challengeState, {
+      type: "power", active: true, result: null,
+      targetSpeedMph: chalToMph(tgt),
+      requiredSuccesses: req,
+      successCount: 0, attemptCount: 0,
+    });
+  } else {
+    const tgt  = parseFloat(chalTargetCon?.value);
+    const tol  = parseFloat(chalToleranceEl?.value);
+    const tot  = parseInt(chalTotalAtt?.value, 10);
+    if (!tgt || tgt <= 0 || isNaN(tol) || tol < 0 || !tot || tot < 1) { showToast("Enter valid values."); return; }
+    Object.assign(challengeState, {
+      type: "consistency", active: true, result: null,
+      targetSpeedMph: chalToMph(tgt),
+      toleranceMph:   chalToMph(tol),
+      totalAttempts:  tot,
+      successCount: 0, attemptCount: 0,
+    });
+  }
+  chalShowView("progress");
+  chalUpdateProgressUI();
+  chalUpdateStrip();
+  showToast("Challenge started! Go break.");
+}
+
+// ── Cancel / reset ────────────────────────────────────────────────────────────
+function cancelChallenge() {
+  Object.assign(challengeState, { active: false, type: null, result: null, successCount: 0, attemptCount: 0 });
+  chalShowView("setup");
+  chalUpdateStrip();
+}
+
+// ── Called after every saved break ───────────────────────────────────────────
+function onBreakSaved(speedMph) {
+  if (!challengeState.active || speedMph == null) return;
+
+  challengeState.attemptCount++;
+
+  if (challengeState.type === "power") {
+    if (speedMph >= challengeState.targetSpeedMph) challengeState.successCount++;
+    if (challengeState.successCount >= challengeState.requiredSuccesses) {
+      challengeState.active = false;
+      challengeState.result = "complete";
+      chalShowComplete();
+    } else {
+      chalUpdateProgressUI();
+      chalUpdateStrip();
+    }
+  } else {
+    if (Math.abs(speedMph - challengeState.targetSpeedMph) <= challengeState.toleranceMph) {
+      challengeState.successCount++;
+    }
+    if (challengeState.attemptCount >= challengeState.totalAttempts) {
+      challengeState.active = false;
+      challengeState.result = "done";
+      chalShowComplete();
+    } else {
+      chalUpdateProgressUI();
+      chalUpdateStrip();
+    }
+  }
+}
+
+// ── Update the progress card UI ───────────────────────────────────────────────
+function chalUpdateProgressUI() {
+  const { type, targetSpeedMph, toleranceMph, requiredSuccesses, totalAttempts, successCount, attemptCount } = challengeState;
+  const tgt = fmtStat(targetSpeedMph);
+
+  if (type === "power") {
+    if (chalProgressType) chalProgressType.textContent = "⚡ Power Challenge";
+    if (chalProgressTgt)  chalProgressTgt.textContent  = `Target: ≥ ${tgt}`;
+    if (chalProgressStat) chalProgressStat.textContent = `${successCount} / ${requiredSuccesses} successful breaks`;
+    if (chalProgressSub)  chalProgressSub.textContent  = attemptCount > 0 ? `${attemptCount} attempt${attemptCount !== 1 ? "s" : ""} so far` : "";
+    const pct = requiredSuccesses > 0 ? Math.min((successCount / requiredSuccesses) * 100, 100) : 0;
+    if (chalProgressBar) chalProgressBar.style.width = `${pct}%`;
+  } else {
+    const tol = fmtStat(toleranceMph);
+    const remaining = totalAttempts - attemptCount;
+    if (chalProgressType) chalProgressType.textContent = "◎ Consistency Challenge";
+    if (chalProgressTgt)  chalProgressTgt.textContent  = `Target: ${tgt} ±${fmtStat(toleranceMph).replace(/\s*\w+$/, "")} ${settings.units || "mph"}`;
+    if (chalProgressStat) chalProgressStat.textContent = `${successCount} of ${attemptCount} in range`;
+    if (chalProgressSub)  chalProgressSub.textContent  = remaining > 0 ? `${remaining} attempt${remaining !== 1 ? "s" : ""} remaining` : "";
+    const pct = totalAttempts > 0 ? Math.min((attemptCount / totalAttempts) * 100, 100) : 0;
+    if (chalProgressBar) chalProgressBar.style.width = `${pct}%`;
+  }
+}
+
+// ── Show completion state ─────────────────────────────────────────────────────
+function chalShowComplete() {
+  const { type, targetSpeedMph, toleranceMph, requiredSuccesses, totalAttempts, successCount, attemptCount } = challengeState;
+  const tgt = fmtStat(targetSpeedMph);
+
+  if (type === "power") {
+    if (chalCompleteIcon) chalCompleteIcon.textContent = "🏆";
+    if (chalCompleteTit)  chalCompleteTit.textContent  = "Challenge Complete!";
+    if (chalCompleteSumm) chalCompleteSumm.textContent = `Hit ${successCount} breaks ≥ ${tgt} in ${attemptCount} attempt${attemptCount !== 1 ? "s" : ""}.`;
+    showToast("Challenge complete! 🏆");
+  } else {
+    const allIn   = successCount === totalAttempts;
+    const mostIn  = successCount >= Math.ceil(totalAttempts * 0.7);
+    const icon    = allIn ? "🏆" : mostIn ? "✓" : "✗";
+    const title   = allIn ? "Perfect Consistency!" : mostIn ? "Good Consistency" : "Challenge Done";
+    const tolDisp = fmtStat(toleranceMph);
+    if (chalCompleteIcon) chalCompleteIcon.textContent = icon;
+    if (chalCompleteTit)  chalCompleteTit.textContent  = title;
+    if (chalCompleteSumm) chalCompleteSumm.textContent = `${successCount} of ${totalAttempts} breaks were within ${tgt} ±${tolDisp}.`;
+    showToast(`${successCount}/${totalAttempts} in range.`);
+  }
+
+  chalShowView("complete");
+  chalUpdateStrip();
+}
+
+// ── Update the hero-screen strip ──────────────────────────────────────────────
+function chalUpdateStrip() {
+  if (!chalStripEl) return;
+
+  // Hide strip if nothing is active and no completed result to show
+  if (!challengeState.active && challengeState.result == null) {
+    chalStripEl.hidden = true;
+    return;
+  }
+
+  chalStripEl.hidden = false;
+  const { type, targetSpeedMph, toleranceMph, requiredSuccesses, totalAttempts, successCount, attemptCount, result } = challengeState;
+  const tgt = fmtStat(targetSpeedMph);
+
+  if (type === "power") {
+    if (chalStripBadge)    chalStripBadge.textContent    = "⚡";
+    if (chalStripProgress) chalStripProgress.textContent = result
+      ? `Done! ${successCount}/${requiredSuccesses} breaks ≥ ${tgt}`
+      : `${successCount} / ${requiredSuccesses} breaks ≥ ${tgt}`;
+  } else {
+    const remaining = totalAttempts - attemptCount;
+    if (chalStripBadge)    chalStripBadge.textContent    = "◎";
+    if (chalStripProgress) chalStripProgress.textContent = result
+      ? `Done! ${successCount}/${totalAttempts} in range`
+      : `${successCount}/${attemptCount} in range · ${remaining} left`;
+  }
+}
+
+// ── Event wiring ──────────────────────────────────────────────────────────────
+chalStartBtn?.addEventListener("click",  startChallenge);
+chalCancelBtn?.addEventListener("click", cancelChallenge);
+chalStripCancel?.addEventListener("click", cancelChallenge);
+
+chalNewBtn?.addEventListener("click", () => {
+  challengeState.result = null;
+  chalShowView("setup");
+  chalUpdateStrip();
+});
+
+chalStripView?.addEventListener("click", () => {
+  // Navigate to Stats tab where the challenge card lives
+  const statsBtn = document.getElementById("bnavStats");
+  statsBtn?.click();
+});
+
+// Init: update labels once settings are loaded (called again after settings change)
+setTimeout(chalUpdateUnitLabels, 100);
 
 // ─── Pro Feature Gating ──────────────────────────────────────────────────────
 
