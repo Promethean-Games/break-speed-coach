@@ -1894,16 +1894,15 @@ function renderHistory() {
     const confTier = sess.bestConf || bestAttempt?.confidenceTier || "low";
 
     hdr.innerHTML =
-      `<div class="hist-hdr-left">` +
-        `<div class="hist-speed">${speedTxt}</div>` +
+      `<div class="hist-hdr-top">` +
+        `<div class="hist-date">${fmtDate(sess.createdAt)}</div>` +
         `<div class="hist-conf">${badge(confTier)}</div>` +
       `</div>` +
-      `<div class="hist-hdr-right">` +
-        `<div class="hist-date">${fmtDate(sess.createdAt)}</div>` +
+      `<div class="hist-hdr-bottom">` +
+        `<div class="hist-speed">${speedTxt}</div>` +
         `<div class="hist-meta">${[
           `${sess.attemptCount} attempt${sess.attemptCount !== 1 ? "s" : ""}`,
           sess.rackConfig ? (RACK_LABELS[sess.rackConfig] || sess.rackConfig) : null,
-          sess.sourceType,
         ].filter(Boolean).join(" · ")}</div>` +
       `</div>` +
       `<button class="hist-del-btn" title="Delete session">✕</button>`;
