@@ -2,7 +2,7 @@
  * Service Worker — Break Session Analyzer
  * Strategy: cache-first for static assets, network-first for API calls.
  */
-const CACHE = "bsc-v3";
+const CACHE = "bsc-v4";
 const STATIC = [
   "/",
   "/styles.css",
