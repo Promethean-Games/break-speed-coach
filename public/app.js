@@ -3153,6 +3153,86 @@ function renderCmpWinners(statsMap) {
   if (cmpWinConsistEl) { cmpWinConsistEl.textContent = consist.join(" & "); if (consist.length > 1) cmpWinConsistEl.classList.add("cmp-winner-val--tie"); else cmpWinConsistEl.classList.remove("cmp-winner-val--tie"); }
 }
 
+// ── Control tier helpers ──────────────────────────────────────────────────────
+const CTRL_TIERS = [
+  { label: "Ice Cold",  level: 5, color: "#60cfff", max: 1.0  },
+  { label: "Locked In", level: 4, color: "#22d3a4", max: 2.0  },
+  { label: "Dialed",    level: 3, color: "#ffd84d", max: 3.5  },
+  { label: "Loose",     level: 2, color: "#ff9234", max: 5.5  },
+  { label: "Wild",      level: 1, color: "#ff4f4f", max: Infinity },
+];
+function controlTier(stdDevMph) {
+  if (stdDevMph == null) return null;
+  return CTRL_TIERS.find(t => stdDevMph < t.max) || CTRL_TIERS[CTRL_TIERS.length - 1];
+}
+function controlTierRow(stdDevMph, deltaVal, barPct, isBase) {
+  const row = document.createElement("div");
+  row.className = "cmp-metric";
+
+  const top = document.createElement("div");
+  top.className = "cmp-metric-row";
+
+  const lblEl = document.createElement("span");
+  lblEl.className = "cmp-metric-lbl";
+  lblEl.textContent = "Control";
+  top.appendChild(lblEl);
+
+  const valWrap = document.createElement("div");
+  valWrap.className = "cmp-metric-val-wrap";
+
+  const tier = controlTier(stdDevMph);
+  if (tier) {
+    const pill = document.createElement("span");
+    pill.className = "ctrl-tier-pill";
+    pill.style.color = tier.color;
+    pill.style.borderColor = tier.color + "55";
+    pill.textContent = tier.label;
+    valWrap.appendChild(pill);
+
+    if (!isBase && deltaVal != null) {
+      const deltaEl = document.createElement("span");
+      const isBetter = deltaVal > 0; // positive = more consistent
+      const isNeutral = Math.abs(deltaVal) < 0.05;
+      deltaEl.className = "cmp-delta" + (isNeutral ? " cmp-delta--zero" : isBetter ? " cmp-delta--pos" : " cmp-delta--neg");
+      const displayDelta = convertSpeed(Math.abs(deltaVal)).toFixed(1);
+      deltaEl.textContent = isNeutral ? "=" : (isBetter ? "+" : "−") + displayDelta + " " + settings.units;
+      valWrap.appendChild(deltaEl);
+    }
+  } else {
+    const dash = document.createElement("span");
+    dash.className = "cmp-metric-val";
+    dash.textContent = "—";
+    valWrap.appendChild(dash);
+  }
+  top.appendChild(valWrap);
+  row.appendChild(top);
+
+  // Segmented meter
+  if (tier) {
+    const meter = document.createElement("div");
+    meter.className = "ctrl-meter";
+    for (let i = 1; i <= 5; i++) {
+      const seg = document.createElement("span");
+      seg.className = "ctrl-seg" + (i <= tier.level ? " ctrl-seg--on" : "");
+      if (i <= tier.level) seg.style.background = tier.color;
+      meter.appendChild(seg);
+    }
+    row.appendChild(meter);
+  }
+
+  if (barPct != null) {
+    const barWrap = document.createElement("div");
+    barWrap.className = "cmp-bar-wrap";
+    const bar = document.createElement("div");
+    bar.className = "cmp-bar";
+    bar.style.width = Math.max(2, barPct) + "%";
+    barWrap.appendChild(bar);
+    row.appendChild(barWrap);
+  }
+
+  return row;
+}
+
 // ── Render comparison cards ───────────────────────────────────────────────────
 function renderCmpCards() {
   if (!cmpCardsEl) return;
@@ -3225,9 +3305,9 @@ function renderCmpCards() {
     const rankRow = document.createElement("div");
     rankRow.className = "cmp-ranks";
     const rankDefs = [
-      { lbl: "Zone",    key: "zone" },
+      { lbl: "Fastest", key: "zone" },
       { lbl: "Avg Spd", key: "avg" },
-      { lbl: "Consist", key: "consist" },
+      { lbl: "Control", key: "consist" },
     ];
     rankDefs.forEach(({ lbl, key }) => {
       const rk = r[key];
@@ -3294,11 +3374,11 @@ function renderCmpCards() {
       noData.innerHTML = '<span class="cmp-metric-val">No data yet</span>';
       metrics.appendChild(noData);
     } else {
-      metrics.appendChild(metricRow("Best Zone",   s.bestHighSpeed,     d?.zone,    b.zone,    true));
-      metrics.appendChild(metricRow("Avg Speed",   s.avgSpeed,          d?.avg,     b.avg,     true));
-      // Consistency delta: positive = other is more consistent
+      metrics.appendChild(metricRow("Fastest Break", s.bestHighSpeed, d?.zone, b.zone, true));
+      metrics.appendChild(metricRow("Avg Speed",     s.avgSpeed,      d?.avg,  b.avg,  true));
+      // Control tier row (replaces raw consistency number)
       const cdelta = d?.consist;
-      metrics.appendChild(metricRow("Consistency", s.consistencyStdDev != null ? s.consistencyStdDev : null, cdelta, b.consist, false));
+      metrics.appendChild(controlTierRow(s.consistencyStdDev, cdelta, b.consist, isBase));
     }
     card.appendChild(metrics);
     cmpCardsEl.appendChild(card);
