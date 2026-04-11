@@ -998,6 +998,15 @@
         <span class="pro-modal-spinner" id="proModalSpinner" hidden>···</span>
       </button>
       <button class="pro-modal-restore" id="proModalRestore">Restore Purchase</button>
+      <!-- Email-based restore form (shown when restore btn is clicked) -->
+      <div class="pro-modal-restore-form" id="proModalRestoreForm" hidden>
+        <p class="pro-modal-restore-hint">Enter the email you used to pay and we'll look up your purchase.</p>
+        <input type="email" class="pro-modal-restore-email" id="proModalRestoreEmail" placeholder="your@email.com" autocomplete="email" />
+        <div class="pro-modal-restore-row">
+          <button class="pro-modal-restore-submit" id="proModalRestoreSubmit">Check Purchase</button>
+          <button class="pro-modal-restore-cancel" id="proModalRestoreCancel">Cancel</button>
+        </div>
+      </div>
     </div>
   </div>
 
