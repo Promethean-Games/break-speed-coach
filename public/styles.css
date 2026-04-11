@@ -3946,6 +3946,37 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
 }
 .cmp-metric--no-data .cmp-metric-val { color: rgba(255,255,255,.3); }
 
+/* ── Control tier pill + segmented meter ─────────────────────────────────── */
+.ctrl-tier-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  padding: 1px 7px;
+  border-radius: 20px;
+  border: 1px solid currentColor;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.ctrl-meter {
+  display: flex;
+  gap: 3px;
+  margin-top: 4px;
+}
+.ctrl-seg {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,.1);
+  transition: background .25s;
+}
+.ctrl-seg--on {
+  opacity: .9;
+}
+[data-theme="light"] .ctrl-seg { background: rgba(0,0,0,.1); }
+[data-theme="light"] .ctrl-seg--on { opacity: 1; }
+
 [data-theme="light"] .cmp-winner-lbl { color: rgba(0,0,0,.4); }
 [data-theme="light"] .cmp-winner-item { background: rgba(0,100,200,.05); border-color: rgba(0,100,200,.1); }
 [data-theme="light"] .cmp-winner-strip { border-color: rgba(0,100,200,.15); }
