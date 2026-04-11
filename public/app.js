@@ -2610,6 +2610,33 @@ const chalStripProgress = document.getElementById("chalStripProgress");
 const chalStripView     = document.getElementById("chalStripView");
 const chalStripCancel   = document.getElementById("chalStripCancel");
 
+// Tolerance stepper
+const chalTolDecBtn  = document.getElementById("chalTolDec");
+const chalTolIncBtn  = document.getElementById("chalTolInc");
+const chalTolDisplay = document.getElementById("chalToleranceDisplay");
+const chalTotalAttDisplay = document.getElementById("chalTotalAttemptsDisplay");
+
+(function initChallengeControls() {
+  // Stepper: ± 0.5 increments, clamped 0.5–10
+  function setTolerance(v) {
+    v = Math.round(v * 10) / 10;
+    v = Math.max(0.5, Math.min(10, v));
+    if (chalToleranceEl) chalToleranceEl.value = String(v);
+    if (chalTolDisplay)  chalTolDisplay.textContent = v % 1 === 0 ? v.toFixed(1) : String(v);
+  }
+  chalTolDecBtn?.addEventListener("click", () => {
+    setTolerance(parseFloat(chalToleranceEl?.value || "0.5") - 0.5);
+  });
+  chalTolIncBtn?.addEventListener("click", () => {
+    setTolerance(parseFloat(chalToleranceEl?.value || "0.5") + 0.5);
+  });
+  // Slider: live display
+  const slider = document.getElementById("chalTotalAttempts");
+  slider?.addEventListener("input", () => {
+    if (chalTotalAttDisplay) chalTotalAttDisplay.textContent = slider.value;
+  });
+})();
+
 // Active challenge type selection
 let activeChalType = "power";
 
