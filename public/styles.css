@@ -3646,6 +3646,321 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
 [data-theme="light"] .challenge-complete-summary { color: rgba(0,0,0,.5); }
 [data-theme="light"] .challenge-strip-inner { background: rgba(240,245,255,.95); border-color: rgba(0,100,200,.25); }
 
+/* ── Dashboard Tab Strip ─────────────────────────────────────────────────── */
+.dash-tab-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 0 4px;
+}
+.dash-tab-strip {
+  display: flex;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  gap: 2px;
+  padding: 8px 4px;
+}
+.dash-tab-strip::-webkit-scrollbar { display: none; }
+.dash-tab {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: 1.5px solid transparent;
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.5);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .14s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dash-tab:active { transform: scale(.96); }
+.dash-tab.active {
+  background: rgba(0,148,255,.14);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.dash-tab-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dash-tab--compare { /* special styling for the Compare tab */
+  background: rgba(108,60,220,.1);
+  border-color: rgba(108,60,220,.2);
+  color: rgba(180,140,255,.9);
+}
+.dash-tab--compare.active {
+  background: rgba(108,60,220,.2);
+  border-color: rgba(108,60,220,.6);
+  color: rgb(200,170,255);
+}
+[data-theme="light"] .dash-tab { background: rgba(0,0,0,.05); color: rgba(0,0,0,.5); }
+[data-theme="light"] .dash-tab.active { background: rgba(0,100,200,.1); color: #0060cc; }
+[data-theme="light"] .dash-tab--compare { background: rgba(100,60,200,.07); color: #5030aa; border-color: rgba(100,60,200,.2); }
+[data-theme="light"] .dash-tab-wrap { background: var(--bg); }
+
+/* ── Compare View ─────────────────────────────────────────────────────────── */
+#compareView { padding: 0 0 16px; }
+#personalView { padding: 0; }
+
+.cmp-winner-strip {
+  display: flex;
+  gap: 0;
+  margin: 12px 0 10px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(0,148,255,.15);
+}
+.cmp-winner-item {
+  flex: 1;
+  text-align: center;
+  padding: 10px 6px;
+  background: rgba(0,148,255,.06);
+  border-right: 1px solid rgba(0,148,255,.1);
+}
+.cmp-winner-item:last-child { border-right: none; }
+.cmp-winner-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.4);
+  margin-bottom: 4px;
+}
+.cmp-winner-val {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.2;
+}
+.cmp-winner-val--tie { font-size: 11px; }
+
+.cmp-controls { margin-bottom: 12px; }
+.cmp-pills-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.cmp-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.6);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .14s;
+}
+.cmp-pill.selected {
+  border-color: var(--accent);
+  background: rgba(0,148,255,.12);
+  color: var(--text);
+}
+.cmp-pill-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.cmp-pill-check { font-size: 10px; margin-left: 2px; }
+
+.cmp-selects-row {
+  display: flex;
+  gap: 8px;
+}
+.cmp-select-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cmp-select-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.4);
+}
+.cmp-select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 9px;
+  border: 1.5px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.cmp-select:focus { border-color: var(--accent); }
+
+.cmp-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: rgba(255,255,255,.35);
+  font-size: 13px;
+}
+.cmp-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* Comparison card */
+.cmp-card {
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.04);
+  padding: 14px 14px 12px;
+  position: relative;
+  overflow: hidden;
+}
+.cmp-card--baseline {
+  border-color: rgba(0,148,255,.35);
+  background: rgba(0,148,255,.05);
+}
+.cmp-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.cmp-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.cmp-card-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.cmp-card-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+}
+.cmp-baseline-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  background: rgba(0,148,255,.2);
+  border: 1px solid rgba(0,148,255,.4);
+  color: var(--accent);
+  border-radius: 5px;
+  padding: 2px 6px;
+  text-transform: uppercase;
+}
+.cmp-card-date {
+  font-size: 11px;
+  color: rgba(255,255,255,.35);
+}
+.cmp-ranks {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.cmp-rank-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255,255,255,.07);
+  color: rgba(255,255,255,.55);
+}
+.cmp-rank-badge--1 {
+  background: rgba(255,200,0,.15);
+  color: #ffc800;
+}
+.cmp-rank-badge--2 {
+  background: rgba(200,210,220,.1);
+  color: #c8d2dc;
+}
+.cmp-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.cmp-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.cmp-metric-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cmp-metric-lbl {
+  font-size: 11px;
+  color: rgba(255,255,255,.45);
+  font-weight: 600;
+}
+.cmp-metric-val-wrap {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.cmp-metric-val {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.cmp-delta {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 5px;
+}
+.cmp-delta--pos { background: rgba(0,200,80,.12); color: #00c850; }
+.cmp-delta--neg { background: rgba(255,60,60,.12); color: #ff4040; }
+.cmp-delta--zero { background: rgba(255,255,255,.07); color: rgba(255,255,255,.4); }
+.cmp-bar-wrap {
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255,255,255,.07);
+  overflow: hidden;
+}
+.cmp-bar {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #0094ff, #6c3cdc);
+  transition: width .3s ease;
+}
+.cmp-metric--no-data .cmp-metric-val { color: rgba(255,255,255,.3); }
+
+[data-theme="light"] .cmp-winner-lbl { color: rgba(0,0,0,.4); }
+[data-theme="light"] .cmp-winner-item { background: rgba(0,100,200,.05); border-color: rgba(0,100,200,.1); }
+[data-theme="light"] .cmp-winner-strip { border-color: rgba(0,100,200,.15); }
+[data-theme="light"] .cmp-pill { background: rgba(0,0,0,.05); border-color: rgba(0,0,0,.1); color: rgba(0,0,0,.5); }
+[data-theme="light"] .cmp-pill.selected { background: rgba(0,100,200,.1); border-color: #0060cc; color: #1a2340; }
+[data-theme="light"] .cmp-select-lbl { color: rgba(0,0,0,.4); }
+[data-theme="light"] .cmp-select { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.14); color: #1a2340; }
+[data-theme="light"] .cmp-card { background: rgba(0,0,0,.03); border-color: rgba(0,0,0,.08); }
+[data-theme="light"] .cmp-card--baseline { background: rgba(0,100,200,.05); border-color: rgba(0,100,200,.25); }
+[data-theme="light"] .cmp-card-date { color: rgba(0,0,0,.3); }
+[data-theme="light"] .cmp-rank-badge { background: rgba(0,0,0,.06); color: rgba(0,0,0,.5); }
+[data-theme="light"] .cmp-metric-lbl { color: rgba(0,0,0,.45); }
+[data-theme="light"] .cmp-bar-wrap { background: rgba(0,0,0,.07); }
+[data-theme="light"] .cmp-empty { color: rgba(0,0,0,.3); }
+
 /* ── Pro Active Cards (unlocked feature state) ───────────────────────────── */
 .pro-active-card {
   border-radius: 14px;
