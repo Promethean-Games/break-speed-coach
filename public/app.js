@@ -637,6 +637,8 @@ function setActiveProfile(profile) {
   } else {
     histAccordionLoaded = false;
   }
+  // Refresh stats dashboard immediately if it's the visible screen
+  if (!screenDashboard.hidden) loadDashboard();
 }
 
 // ─── Load profiles on startup ─────────────────────────────────────────────────
