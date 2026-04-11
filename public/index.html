@@ -912,8 +912,8 @@
       <!-- Pro preview cards — always visible in Stats when profile is loaded -->
       <div class="pro-extras-section" id="proExtrasSection" hidden>
 
-        <!-- Challenge Mode -->
-        <div class="pro-preview-card pro-preview-card--extra">
+        <!-- Challenge Mode — locked (free users) -->
+        <div class="pro-preview-card pro-preview-card--extra" id="challengeLockedCard">
           <div class="pro-preview-blur" aria-hidden="true">
             <div class="pro-ghost-bar" style="width:45%;height:14px;margin-bottom:8px"></div>
             <div class="pro-ghost-row">
@@ -932,8 +932,21 @@
           </div>
         </div>
 
-        <!-- Export & Sharing -->
-        <div class="pro-preview-card pro-preview-card--extra">
+        <!-- Challenge Mode — unlocked (pro users) -->
+        <div class="pro-active-card" id="challengeActiveCard" hidden>
+          <div class="pro-active-header">
+            <span class="pro-active-icon">⚡</span>
+            <div>
+              <div class="pro-active-title">Challenge Mode</div>
+              <div class="pro-active-sub">Pro feature</div>
+            </div>
+            <span class="pro-coming-badge">Coming Soon</span>
+          </div>
+          <p class="pro-active-desc">Set a target speed and train to hit it consistently. This feature is in active development — it'll appear here automatically when it launches.</p>
+        </div>
+
+        <!-- Export & Sharing — locked (free users) -->
+        <div class="pro-preview-card pro-preview-card--extra" id="exportLockedCard">
           <div class="pro-preview-blur" aria-hidden="true">
             <div class="pro-ghost-bar" style="width:65%;height:14px;margin-bottom:8px"></div>
             <div class="pro-ghost-bar" style="width:40%;height:10px;margin-bottom:8px"></div>
@@ -949,6 +962,19 @@
             <div class="pro-preview-desc">Download your session data as CSV or share your best breaks with your coach or league.</div>
             <button class="pro-unlock-btn" data-feature="export">Unlock Pro</button>
           </div>
+        </div>
+
+        <!-- Export & Sharing — unlocked (pro users) -->
+        <div class="pro-active-card" id="exportActiveCard" hidden>
+          <div class="pro-active-header">
+            <span class="pro-active-icon">↑</span>
+            <div>
+              <div class="pro-active-title">Export &amp; Sharing</div>
+              <div class="pro-active-sub">Pro feature — active</div>
+            </div>
+          </div>
+          <p class="pro-active-desc">Download your full session history as a CSV file to analyse in a spreadsheet or share with your coach.</p>
+          <button class="pro-export-btn" id="exportCsvBtn">⬇ Download CSV</button>
         </div>
 
       </div><!-- /pro-extras-section -->
