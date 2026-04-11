@@ -3029,7 +3029,7 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
   overflow: hidden;
   border: 1px solid rgba(255,255,255,.1);
   background: rgba(15,20,40,.6);
-  min-height: 140px;
+  min-height: 220px;
   margin-bottom: 16px;
 }
 .pro-preview-card--inline {
