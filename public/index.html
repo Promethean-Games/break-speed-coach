@@ -709,15 +709,59 @@
   <!-- ═══════════════════════════════════════════ DASHBOARD ══ -->
   <div class="screen screen-has-nav" id="screenDashboard" hidden>
 
-    <div class="screen-topbar">
-      <button class="profile-pill" id="profilePillDash">
-        <span class="profile-pill-dot" id="profilePillDashDot"></span>
-        <span class="profile-pill-name" id="profilePillDashName">Loading…</span>
-        <span class="profile-pill-caret">▾</span>
-      </button>
+    <!-- Horizontally scrollable profile + compare tab strip -->
+    <div class="dash-tab-wrap">
+      <div class="dash-tab-strip" id="dashTabStrip">
+        <!-- built by buildDashTabs() -->
+      </div>
     </div>
 
     <div class="dash-body" id="dashBody">
+
+      <!-- ══ Compare view ══════════════════════════════════════════ -->
+      <div id="compareView" hidden>
+
+        <div class="cmp-winner-strip" id="cmpWinnerStrip">
+          <div class="cmp-winner-item">
+            <div class="cmp-winner-lbl">Highest Zone</div>
+            <div class="cmp-winner-val" id="cmpWinZone">—</div>
+          </div>
+          <div class="cmp-winner-item">
+            <div class="cmp-winner-lbl">Fastest Avg</div>
+            <div class="cmp-winner-val" id="cmpWinAvg">—</div>
+          </div>
+          <div class="cmp-winner-item">
+            <div class="cmp-winner-lbl">Most Consistent</div>
+            <div class="cmp-winner-val" id="cmpWinConsist">—</div>
+          </div>
+        </div>
+
+        <div class="cmp-controls">
+          <div class="cmp-pills-row" id="cmpPillsRow"></div>
+          <div class="cmp-selects-row">
+            <label class="cmp-select-wrap">
+              <span class="cmp-select-lbl">Baseline</span>
+              <select class="cmp-select" id="cmpBaselineSelect"></select>
+            </label>
+            <label class="cmp-select-wrap">
+              <span class="cmp-select-lbl">Sort by</span>
+              <select class="cmp-select" id="cmpSortSelect">
+                <option value="avgSpeed">Avg Speed</option>
+                <option value="bestHigh">Best Zone</option>
+                <option value="consistency">Consistency</option>
+                <option value="sessions">Total Sessions</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="cmp-empty" id="cmpEmpty" hidden>Select at least 2 profiles above to compare.</div>
+        <div class="cmp-cards" id="cmpCards"></div>
+
+      </div><!-- /compareView -->
+
+      <!-- ══ Personal stats view (existing content) ══════════════ -->
+      <div id="personalView">
       <div class="dash-empty" id="dashEmpty" hidden>
         <div class="dash-empty-icon">◎</div>
         <div class="dash-empty-msg">No data yet.<br>Record a break session to get started.</div>
@@ -1050,6 +1094,8 @@
         </div>
 
       </div><!-- /pro-extras-section -->
+
+      </div><!-- /personalView -->
 
     </div><!-- /dash-body -->
   </div><!-- /screenDashboard -->
