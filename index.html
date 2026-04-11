@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <title>Break Session Analyzer</title>
+  <title>Break Speed Coach</title>
   <meta name="description" content="Measure the speed of your pool break shot using your phone's microphone. Record up to 5 attempts for a high-confidence reading." />
 
   <!-- PWA / TWA -->
@@ -51,6 +51,12 @@
         </div>
         <button class="settings-pro-btn" id="settingsProBtn">Upgrade to Pro</button>
       </div>
+
+      <!-- Add to Home Screen -->
+      <button class="settings-a2hs-btn" id="a2hsBtn" hidden>
+        <span class="settings-a2hs-icon">⊕</span>
+        Add to Home Screen
+      </button>
 
       <div class="settings-section">
         <div class="settings-label">Table Size</div>
@@ -263,6 +269,7 @@
         <div class="hiw-step-body">
           <p>Your phone's mic listens to the break. An audio engine detects the cue-ball strike and rack scatter, then calculates impact speed.</p>
           <p><strong>No hardware. No radar gun. Just your phone.</strong></p>
+          <p class="hiw-note"><strong>Important:</strong> Always use a tight rack for the most accurate and consistent readings.</p>
           <p class="hiw-note">Readings are speed estimates, not radar measurements. Use them as consistent training feedback.</p>
         </div>
       </div>
@@ -272,8 +279,8 @@
         <div class="hiw-step-icon hiw-icon-phone">◐</div>
         <div class="hiw-step-title">Phone Placement</div>
         <div class="hiw-step-body">
-          <img class="hiw-placement-svg" src="/table-setup.png" alt="Place phone on the rail beside the rack, mic facing the table">
-          <p class="hiw-placement-caption">Flat on the <strong>rail near the rack</strong>, mic side facing the table.</p>
+          <img class="hiw-placement-svg" src="/table-setup.png" alt="Place phone on the rail beside the rack, mic facing the player">
+          <p class="hiw-placement-caption">Flat on the <strong>rail near the rack</strong>, mic side facing the player.</p>
           <ul class="hiw-tips">
             <li>Same spot every session for consistent data</li>
             <li>Stable surface only — never handheld</li>
@@ -327,10 +334,6 @@
               <span class="hiw-result-desc">At least one object ball dropped</span>
             </div>
             <div class="hiw-result-row">
-              <span class="hiw-result-lbl">Break &amp; Run</span>
-              <span class="hiw-result-desc">Cleared the table from the break</span>
-            </div>
-            <div class="hiw-result-row">
               <span class="hiw-result-lbl">Money Ball</span>
               <span class="hiw-result-desc">8, 9, or 10 ball dropped on the break</span>
             </div>
@@ -354,13 +357,12 @@
               <span class="hiw-result-lbl">Zone Gauge</span>
               <span class="hiw-result-desc">Latest break shown as Below / In Zone / Above your range</span>
             </div>
-            <div class="hiw-result-row">
-              <span class="hiw-result-lbl">Consistency</span>
-              <span class="hiw-result-desc">Dots for your last 10 breaks — in-zone or out</span>
-            </div>
-            <div class="hiw-result-row">
-              <span class="hiw-result-lbl">Speed Trends</span>
-              <span class="hiw-result-desc">Chart of your improvement over time</span>
+          </div>
+          <div class="hiw-pro-tile">
+            <span class="hiw-pro-tile-icon">★</span>
+            <div class="hiw-pro-tile-text">
+              <strong>Pro Features</strong>
+              <span>Break Coaching &amp; Consistency Chart</span>
             </div>
           </div>
         </div>
@@ -378,6 +380,13 @@
             <li>Updates automatically as you keep playing</li>
             <li>Add player profiles to track multiple shooters</li>
           </ul>
+          <div class="hiw-pro-tile">
+            <span class="hiw-pro-tile-icon">★</span>
+            <div class="hiw-pro-tile-text">
+              <strong>Pro Feature</strong>
+              <span>Ideal Zone coaching is unlocked with Pro</span>
+            </div>
+          </div>
           <p class="hiw-note">Tap the player pill at the top of any screen to get started.</p>
         </div>
       </div>
@@ -472,8 +481,8 @@
             <div class="setup-opts" id="setupRackConfig">
               <button class="setup-btn active" data-val="8ball">8-ball</button>
               <button class="setup-btn" data-val="9ball">9-ball</button>
-              <button class="setup-btn" data-val="9ball-9spot">9 on spot</button>
-              <button class="setup-btn" data-val="10ball">10-ball</button>
+              <button class="setup-btn setup-btn--pro" data-val="9ball-9spot">9 on spot <span class="setup-pro-lock">★</span></button>
+              <button class="setup-btn setup-btn--pro" data-val="10ball">10-ball <span class="setup-pro-lock">★</span></button>
             </div>
           </div>
 
@@ -482,41 +491,41 @@
             <div class="setup-lbl">Break Position</div>
             <div class="setup-table-wrap">
               <!--
-                Vertical SVG: head (CUE) at top, rack (FOOT) at bottom.
-                5 break-position circles spread horizontally at the head string (y=84).
-                Ball path goes diagonally from selected position down to foot spot (cx=120,cy=212).
+                Vertical SVG: rack (FOOT) at top, head (CUE) at bottom.
+                Foot spot at cy=86 (top quarter). Head string at y=210 (bottom quarter).
+                5 break-position circles at the head string (cy=210). Ball path travels up to foot spot.
               -->
               <svg class="setup-svg setup-svg-vertical" viewBox="0 0 240 296" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
                 <!-- Table frame (rail) -->
                 <rect x="4" y="4" width="232" height="288" rx="10" fill="#1b4332" stroke="rgba(255,255,255,.14)" stroke-width="1.5"/>
                 <!-- Inner felt -->
                 <rect x="24" y="24" width="192" height="248" rx="5" fill="#1e5738" stroke="rgba(255,255,255,.05)" stroke-width="1"/>
-                <!-- Head string — horizontal dashed line at 1/4 from top of felt -->
-                <line x1="26" y1="86" x2="214" y2="86" stroke="rgba(255,255,255,.2)" stroke-width="1.2" stroke-dasharray="5,4"/>
-                <!-- Foot spot (center, 3/4 from top of felt) -->
-                <circle cx="120" cy="210" r="3.5" fill="rgba(255,255,255,.35)"/>
-                <!-- Ball path (updated by JS: x1 changes, x2 stays 120) -->
-                <line id="svgBallPath" x1="120" y1="86" x2="120" y2="204" stroke="var(--accent)" stroke-width="1.3" stroke-dasharray="6,4" opacity="0.5"/>
-                <!-- Arrow at foot spot pointing down -->
-                <polygon id="svgArrow" points="116,202 120,212 124,202" fill="var(--accent)" opacity="0.5"/>
+                <!-- Foot spot (center, 1/4 from top of felt — rack end is now at top) -->
+                <circle cx="120" cy="86" r="3.5" fill="rgba(255,255,255,.35)"/>
+                <!-- Head string — horizontal dashed line at 3/4 from top of felt (cue ball end at bottom) -->
+                <line x1="26" y1="210" x2="214" y2="210" stroke="rgba(255,255,255,.2)" stroke-width="1.2" stroke-dasharray="5,4"/>
+                <!-- Ball path (updated by JS: x1 changes, x2 stays 120; travels from headstring up to foot spot) -->
+                <line id="svgBallPath" x1="120" y1="210" x2="120" y2="92" stroke="var(--accent)" stroke-width="1.3" stroke-dasharray="6,4" opacity="0.5"/>
+                <!-- Arrow at foot spot pointing up -->
+                <polygon id="svgArrow" points="116,94 120,84 124,94" fill="var(--accent)" opacity="0.5"/>
                 <!-- Labels -->
-                <text x="120" y="56"  font-size="7.5" fill="rgba(255,255,255,.28)" text-anchor="middle" font-family="monospace" font-weight="bold">CUE END</text>
-                <text x="120" y="268" font-size="7.5" fill="rgba(255,255,255,.28)" text-anchor="middle" font-family="monospace" font-weight="bold">RACK END</text>
+                <text x="120" y="56"  font-size="7.5" fill="rgba(255,255,255,.28)" text-anchor="middle" font-family="monospace" font-weight="bold">RACK END</text>
+                <text x="120" y="268" font-size="7.5" fill="rgba(255,255,255,.28)" text-anchor="middle" font-family="monospace" font-weight="bold">CUE END</text>
                 <!-- Break-position circles at head string level: 5 horizontal positions -->
                 <!-- cx values: left=38, slight-left=76, center=120, slight-right=164, right=202 -->
                 <g id="svgPositions">
                   <!-- Invisible large hit targets -->
-                  <circle data-pos="left"         cx="38"  cy="86" r="24" fill="transparent" style="cursor:pointer"/>
-                  <circle data-pos="slight-left"   cx="76"  cy="86" r="24" fill="transparent" style="cursor:pointer"/>
-                  <circle data-pos="center"        cx="120" cy="86" r="24" fill="transparent" style="cursor:pointer"/>
-                  <circle data-pos="slight-right"  cx="164" cy="86" r="24" fill="transparent" style="cursor:pointer"/>
-                  <circle data-pos="right"         cx="202" cy="86" r="24" fill="transparent" style="cursor:pointer"/>
+                  <circle data-pos="left"         cx="38"  cy="210" r="24" fill="transparent" style="cursor:pointer"/>
+                  <circle data-pos="slight-left"   cx="76"  cy="210" r="24" fill="transparent" style="cursor:pointer"/>
+                  <circle data-pos="center"        cx="120" cy="210" r="24" fill="transparent" style="cursor:pointer"/>
+                  <circle data-pos="slight-right"  cx="164" cy="210" r="24" fill="transparent" style="cursor:pointer"/>
+                  <circle data-pos="right"         cx="202" cy="210" r="24" fill="transparent" style="cursor:pointer"/>
                   <!-- Visible markers -->
-                  <circle class="svgPos" data-pos="left"         cx="38"  cy="86" r="10" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.3)" stroke-width="1.5" pointer-events="none"/>
-                  <circle class="svgPos" data-pos="slight-left"  cx="76"  cy="86" r="10" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.3)" stroke-width="1.5" pointer-events="none"/>
-                  <circle class="svgPos" data-pos="center"       cx="120" cy="86" r="11" fill="var(--accent)"         stroke="none"                  opacity="0.85"     pointer-events="none"/>
-                  <circle class="svgPos" data-pos="slight-right" cx="164" cy="86" r="10" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.3)" stroke-width="1.5" pointer-events="none"/>
-                  <circle class="svgPos" data-pos="right"        cx="202" cy="86" r="10" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.3)" stroke-width="1.5" pointer-events="none"/>
+                  <circle class="svgPos" data-pos="left"         cx="38"  cy="210" r="10" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.3)" stroke-width="1.5" pointer-events="none"/>
+                  <circle class="svgPos" data-pos="slight-left"  cx="76"  cy="210" r="10" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.3)" stroke-width="1.5" pointer-events="none"/>
+                  <circle class="svgPos" data-pos="center"       cx="120" cy="210" r="11" fill="var(--accent)"         stroke="none"                  opacity="0.85"     pointer-events="none"/>
+                  <circle class="svgPos" data-pos="slight-right" cx="164" cy="210" r="10" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.3)" stroke-width="1.5" pointer-events="none"/>
+                  <circle class="svgPos" data-pos="right"        cx="202" cy="210" r="10" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.3)" stroke-width="1.5" pointer-events="none"/>
                 </g>
               </svg>
               <div class="setup-pos-row" id="setupPosRow">
@@ -706,15 +715,59 @@
   <!-- ═══════════════════════════════════════════ DASHBOARD ══ -->
   <div class="screen screen-has-nav" id="screenDashboard" hidden>
 
-    <div class="screen-topbar">
-      <button class="profile-pill" id="profilePillDash">
-        <span class="profile-pill-dot" id="profilePillDashDot"></span>
-        <span class="profile-pill-name" id="profilePillDashName">Loading…</span>
-        <span class="profile-pill-caret">▾</span>
-      </button>
+    <!-- Horizontally scrollable profile + compare tab strip -->
+    <div class="dash-tab-wrap">
+      <div class="dash-tab-strip" id="dashTabStrip">
+        <!-- built by buildDashTabs() -->
+      </div>
     </div>
 
     <div class="dash-body" id="dashBody">
+
+      <!-- ══ Compare view ══════════════════════════════════════════ -->
+      <div id="compareView" hidden>
+
+        <div class="cmp-winner-strip" id="cmpWinnerStrip">
+          <div class="cmp-winner-item">
+            <div class="cmp-winner-lbl">Fastest Break</div>
+            <div class="cmp-winner-val" id="cmpWinZone">—</div>
+          </div>
+          <div class="cmp-winner-item">
+            <div class="cmp-winner-lbl">Highest Avg</div>
+            <div class="cmp-winner-val" id="cmpWinAvg">—</div>
+          </div>
+          <div class="cmp-winner-item">
+            <div class="cmp-winner-lbl">Best Control</div>
+            <div class="cmp-winner-val" id="cmpWinConsist">—</div>
+          </div>
+        </div>
+
+        <div class="cmp-controls">
+          <div class="cmp-pills-row" id="cmpPillsRow"></div>
+          <div class="cmp-selects-row">
+            <label class="cmp-select-wrap">
+              <span class="cmp-select-lbl">Baseline</span>
+              <select class="cmp-select" id="cmpBaselineSelect"></select>
+            </label>
+            <label class="cmp-select-wrap">
+              <span class="cmp-select-lbl">Sort by</span>
+              <select class="cmp-select" id="cmpSortSelect">
+                <option value="avgSpeed">Avg Speed</option>
+                <option value="bestHigh">Fastest Break</option>
+                <option value="consistency">Control</option>
+                <option value="sessions">Total Sessions</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="cmp-empty" id="cmpEmpty" hidden>Select at least 2 profiles above to compare.</div>
+        <div class="cmp-cards" id="cmpCards"></div>
+
+      </div><!-- /compareView -->
+
+      <!-- ══ Personal stats view (existing content) ══════════════ -->
+      <div id="personalView">
       <div class="dash-empty" id="dashEmpty" hidden>
         <div class="dash-empty-icon">◎</div>
         <div class="dash-empty-msg">No data yet.<br>Record a break session to get started.</div>
@@ -909,8 +962,8 @@
       <!-- Pro preview cards — always visible in Stats when profile is loaded -->
       <div class="pro-extras-section" id="proExtrasSection" hidden>
 
-        <!-- Challenge Mode -->
-        <div class="pro-preview-card pro-preview-card--extra">
+        <!-- Challenge Mode — locked (free users) -->
+        <div class="pro-preview-card pro-preview-card--extra" id="challengeLockedCard">
           <div class="pro-preview-blur" aria-hidden="true">
             <div class="pro-ghost-bar" style="width:45%;height:14px;margin-bottom:8px"></div>
             <div class="pro-ghost-row">
@@ -929,8 +982,93 @@
           </div>
         </div>
 
-        <!-- Export & Sharing -->
-        <div class="pro-preview-card pro-preview-card--extra">
+        <!-- Challenge Mode — unlocked (pro users) -->
+        <div class="challenge-card" id="challengeActiveCard" hidden>
+
+          <!-- ① Setup view -->
+          <div id="challengeSetup">
+            <div class="challenge-card-header">
+              <span class="challenge-card-icon">⚡</span>
+              <div>
+                <div class="challenge-card-title">Challenge Mode</div>
+                <div class="challenge-card-sub">Pro feature</div>
+              </div>
+            </div>
+            <div class="challenge-tabs">
+              <button class="challenge-tab active" data-ctype="power">⚡ Power</button>
+              <button class="challenge-tab" data-ctype="consistency">◎ Consistency</button>
+            </div>
+            <!-- Power fields -->
+            <div class="challenge-fields" id="challengePowerFields">
+              <p class="challenge-type-desc">Hit your target speed the required number of times.</p>
+              <div class="challenge-field-row">
+                <div class="challenge-field-group">
+                  <label class="challenge-lbl">Target speed (<span class="challenge-unit">mph</span>)</label>
+                  <input type="number" class="challenge-input" id="chalTargetSpeedPow" min="1" max="60" step="0.5" value="20">
+                </div>
+                <div class="challenge-field-group">
+                  <label class="challenge-lbl">Required successes</label>
+                  <input type="number" class="challenge-input" id="chalRequiredSuccesses" min="1" max="20" step="1" value="3">
+                </div>
+              </div>
+            </div>
+            <!-- Consistency fields -->
+            <div class="challenge-fields" id="challengeConsistFields" hidden>
+              <p class="challenge-type-desc">Keep every break within a tight speed band.</p>
+              <div class="challenge-field-row">
+                <div class="challenge-field-group">
+                  <label class="challenge-lbl">Target speed (<span class="challenge-unit">mph</span>)</label>
+                  <input type="number" class="challenge-input" id="chalTargetSpeedCon" min="1" max="60" step="0.5" value="20">
+                </div>
+                <div class="challenge-field-group">
+                  <label class="challenge-lbl">Tolerance (<span class="challenge-unit-tol">±mph</span>)</label>
+                  <div class="challenge-stepper">
+                    <button class="challenge-stepper-btn" id="chalTolDec" type="button">−</button>
+                    <span class="challenge-stepper-val" id="chalToleranceDisplay">0.5</span>
+                    <input type="hidden" id="chalTolerance" value="0.5">
+                    <button class="challenge-stepper-btn" id="chalTolInc" type="button">+</button>
+                  </div>
+                </div>
+              </div>
+              <div class="challenge-field-group" style="margin-top:2px">
+                <div class="challenge-attempts-header">
+                  <label class="challenge-lbl">Total attempts</label>
+                  <span class="challenge-attempts-val" id="chalTotalAttemptsDisplay">5</span>
+                </div>
+                <input type="range" class="challenge-slider" id="chalTotalAttempts" min="1" max="10" step="1" value="5">
+              </div>
+            </div>
+            <button class="challenge-start-btn" id="challengeStartBtn">Start Challenge</button>
+          </div>
+
+          <!-- ② Active progress view -->
+          <div id="challengeProgress" hidden>
+            <div class="challenge-progress-header">
+              <div>
+                <div class="challenge-progress-type" id="chalProgressType">⚡ Power Challenge</div>
+                <div class="challenge-progress-target" id="chalProgressTarget">Target: ≥ 20 mph</div>
+              </div>
+              <button class="challenge-cancel-btn" id="challengeCancelBtn">Cancel</button>
+            </div>
+            <div class="challenge-bar-wrap">
+              <div class="challenge-bar" id="chalProgressBar"></div>
+            </div>
+            <div class="challenge-progress-stat" id="chalProgressStat">0 / 3 successful breaks</div>
+            <div class="challenge-progress-sub" id="chalProgressSub"></div>
+          </div>
+
+          <!-- ③ Completion view -->
+          <div id="challengeComplete" hidden>
+            <div class="challenge-complete-icon" id="chalCompleteIcon">🏆</div>
+            <div class="challenge-complete-title" id="chalCompleteTitle">Challenge Complete!</div>
+            <div class="challenge-complete-summary" id="chalCompleteSummary"></div>
+            <button class="challenge-start-btn" id="challengeNewBtn" style="margin-top:14px">New Challenge</button>
+          </div>
+
+        </div>
+
+        <!-- Export & Sharing — locked (free users) -->
+        <div class="pro-preview-card pro-preview-card--extra" id="exportLockedCard">
           <div class="pro-preview-blur" aria-hidden="true">
             <div class="pro-ghost-bar" style="width:65%;height:14px;margin-bottom:8px"></div>
             <div class="pro-ghost-bar" style="width:40%;height:10px;margin-bottom:8px"></div>
@@ -948,7 +1086,22 @@
           </div>
         </div>
 
+        <!-- Export & Sharing — unlocked (pro users) -->
+        <div class="pro-active-card" id="exportActiveCard" hidden>
+          <div class="pro-active-header">
+            <span class="pro-active-icon">↑</span>
+            <div>
+              <div class="pro-active-title">Export &amp; Sharing</div>
+              <div class="pro-active-sub">Pro feature — active</div>
+            </div>
+          </div>
+          <p class="pro-active-desc">Download your full session history as a CSV file to analyse in a spreadsheet or share with your coach.</p>
+          <button class="pro-export-btn" id="exportCsvBtn">⬇ Download CSV</button>
+        </div>
+
       </div><!-- /pro-extras-section -->
+
+      </div><!-- /personalView -->
 
     </div><!-- /dash-body -->
   </div><!-- /screenDashboard -->
@@ -989,12 +1142,21 @@
         <li>Consistency scoring &amp; trend analysis</li>
         <li>Challenge mode &amp; export tools</li>
       </ul>
-      <div class="pro-modal-price">$4.99 <span>/ month</span></div>
+      <div class="pro-modal-price">$1.99 <span>one-time</span></div>
       <button class="pro-modal-cta" id="proModalCta">
         <span id="proModalCtaText">Unlock Pro</span>
         <span class="pro-modal-spinner" id="proModalSpinner" hidden>···</span>
       </button>
       <button class="pro-modal-restore" id="proModalRestore">Restore Purchase</button>
+      <!-- Email-based restore form (shown when restore btn is clicked) -->
+      <div class="pro-modal-restore-form" id="proModalRestoreForm" hidden>
+        <p class="pro-modal-restore-hint">Enter the email you used to pay and we'll look up your purchase.</p>
+        <input type="email" class="pro-modal-restore-email" id="proModalRestoreEmail" placeholder="your@email.com" autocomplete="email" />
+        <div class="pro-modal-restore-row">
+          <button class="pro-modal-restore-submit" id="proModalRestoreSubmit">Check Purchase</button>
+          <button class="pro-modal-restore-cancel" id="proModalRestoreCancel">Cancel</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1002,6 +1164,16 @@
   <div id="adBanner" class="ad-banner" hidden aria-hidden="true"></div>
 
   <!-- ════════════════════════════════════════════ BOTTOM NAV ══ -->
+  <!-- Challenge active strip — fixed above bottom nav -->
+  <div class="challenge-strip" id="challengeStrip" hidden>
+    <div class="challenge-strip-inner">
+      <span class="challenge-strip-badge" id="chalStripBadge">⚡</span>
+      <span class="challenge-strip-progress" id="chalStripProgress">0 / 3 breaks ≥ 20 mph</span>
+      <button class="challenge-strip-view" id="chalStripView">View</button>
+      <button class="challenge-strip-cancel" id="chalStripCancel" title="Cancel challenge">✕</button>
+    </div>
+  </div>
+
   <nav class="bottom-nav" id="bottomNav" hidden>
     <button class="bnav-btn active" id="bnavAnalyze">
       <span class="bnav-icon">◎</span>
