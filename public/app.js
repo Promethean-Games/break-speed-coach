@@ -249,13 +249,17 @@ const cglLatest            = document.getElementById("cglLatest");
 const dashSectionHdr       = document.getElementById("dashSectionHdr");
 
 // Pro gating elements
-const proModalOverlay    = document.getElementById("proModalOverlay");
-const proModalClose      = document.getElementById("proModalClose");
-const proModalCta        = document.getElementById("proModalCta");
-const proModalCtaText    = document.getElementById("proModalCtaText");
-const proModalSpinner    = document.getElementById("proModalSpinner");
-const proModalRestore    = document.getElementById("proModalRestore");
-const proModalFeatureLbl = document.getElementById("proModalFeatureLbl");
+const proModalOverlay       = document.getElementById("proModalOverlay");
+const proModalClose         = document.getElementById("proModalClose");
+const proModalCta           = document.getElementById("proModalCta");
+const proModalCtaText       = document.getElementById("proModalCtaText");
+const proModalSpinner       = document.getElementById("proModalSpinner");
+const proModalRestore       = document.getElementById("proModalRestore");
+const proModalFeatureLbl    = document.getElementById("proModalFeatureLbl");
+const proModalRestoreForm   = document.getElementById("proModalRestoreForm");
+const proModalRestoreEmail  = document.getElementById("proModalRestoreEmail");
+const proModalRestoreSubmit = document.getElementById("proModalRestoreSubmit");
+const proModalRestoreCancel = document.getElementById("proModalRestoreCancel");
 const proCoachPreview    = document.getElementById("proCoachPreview");
 const proConsistPreview  = document.getElementById("proConsistPreview");
 const consistChartCard   = document.getElementById("consistChartCard");
@@ -772,9 +776,16 @@ document.getElementById("upgradeBtn")?.addEventListener("click", () => {
 function handleRestorePurchase() {
   if (window.Android?.restorePurchases) {
     window.Android.restorePurchases();
-  } else {
-    showToast("No purchase to restore");
+    return;
   }
+  // Web: open the pro modal and immediately show the restore email form
+  openProModal("all");
+  // Delay slightly so the modal is visible before we switch to restore mode
+  setTimeout(() => {
+    proModalRestore.hidden = true;
+    proModalRestoreForm.hidden = false;
+    setTimeout(() => proModalRestoreEmail.focus(), 50);
+  }, 50);
 }
 
 document.getElementById("settingsRestoreBtn")?.addEventListener("click", () => {
@@ -2567,12 +2578,21 @@ const PRO_FEATURE_LABELS = {
   history:     "Unlimited History — access every session you have ever recorded.",
 };
 
+function _resetRestoreForm() {
+  proModalRestoreForm.hidden = true;
+  proModalRestore.hidden = false;
+  proModalRestoreEmail.value = "";
+  proModalRestoreSubmit.disabled = false;
+  proModalRestoreSubmit.textContent = "Check Purchase";
+}
+
 function openProModal(feature) {
   const label = PRO_FEATURE_LABELS[feature] || "";
   proModalFeatureLbl.textContent = label;
   proModalCtaText.textContent = "Unlock Pro";
   proModalSpinner.hidden = true;
   proModalCta.disabled = false;
+  _resetRestoreForm();
   proModalOverlay.hidden = false;
   document.body.style.overflow = "hidden";
 }
@@ -2580,6 +2600,7 @@ function openProModal(feature) {
 function closeProModal() {
   proModalOverlay.hidden = true;
   document.body.style.overflow = "";
+  _resetRestoreForm();
 }
 
 async function handleProUpgrade() {
@@ -2599,23 +2620,51 @@ async function handleProUpgrade() {
   }
 }
 
-async function handleProRestore() {
-  proModalRestore.textContent = "Checking…";
-  proModalRestore.disabled = true;
+function handleProRestore() {
+  // First check localStorage (same device / browser)
+  if (BILLING.isProUser()) {
+    closeProModal();
+    applyProGating();
+    showToast("Pro is already active on this device!");
+    return;
+  }
+  // Show email lookup form for new device / cleared storage
+  proModalRestore.hidden = true;
+  proModalRestoreForm.hidden = false;
+  setTimeout(() => proModalRestoreEmail.focus(), 50);
+}
+
+async function handleRestoreEmailSubmit() {
+  const email = proModalRestoreEmail.value.trim();
+  if (!email || !email.includes("@")) {
+    showToast("Please enter a valid email address.");
+    return;
+  }
+  proModalRestoreSubmit.disabled = true;
+  proModalRestoreSubmit.textContent = "Checking…";
   try {
-    const result = await BILLING.restorePurchase();
-    if (result.restored) {
+    const result = await BILLING.restoreByEmail(email);
+    if (result.verified) {
       closeProModal();
       applyProGating();
       showToast("Purchase restored — Pro is active!");
     } else {
-      showToast("No active subscription found.");
+      showToast("No paid purchase found for that email.");
+      proModalRestoreSubmit.disabled = false;
+      proModalRestoreSubmit.textContent = "Check Purchase";
     }
-  } finally {
-    proModalRestore.textContent = "Restore Purchase";
-    proModalRestore.disabled = false;
+  } catch {
+    showToast("Could not check purchase — please try again.");
+    proModalRestoreSubmit.disabled = false;
+    proModalRestoreSubmit.textContent = "Check Purchase";
   }
 }
+
+proModalRestoreSubmit.addEventListener("click", handleRestoreEmailSubmit);
+proModalRestoreCancel.addEventListener("click", _resetRestoreForm);
+proModalRestoreEmail.addEventListener("keydown", e => {
+  if (e.key === "Enter") handleRestoreEmailSubmit();
+});
 
 function applyProGating() {
   const isPro = BILLING.isProUser();
