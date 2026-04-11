@@ -933,16 +933,80 @@
         </div>
 
         <!-- Challenge Mode — unlocked (pro users) -->
-        <div class="pro-active-card" id="challengeActiveCard" hidden>
-          <div class="pro-active-header">
-            <span class="pro-active-icon">⚡</span>
-            <div>
-              <div class="pro-active-title">Challenge Mode</div>
-              <div class="pro-active-sub">Pro feature</div>
+        <div class="challenge-card" id="challengeActiveCard" hidden>
+
+          <!-- ① Setup view -->
+          <div id="challengeSetup">
+            <div class="challenge-card-header">
+              <span class="challenge-card-icon">⚡</span>
+              <div>
+                <div class="challenge-card-title">Challenge Mode</div>
+                <div class="challenge-card-sub">Pro feature</div>
+              </div>
             </div>
-            <span class="pro-coming-badge">Coming Soon</span>
+            <div class="challenge-tabs">
+              <button class="challenge-tab active" data-ctype="power">⚡ Power</button>
+              <button class="challenge-tab" data-ctype="consistency">◎ Consistency</button>
+            </div>
+            <!-- Power fields -->
+            <div class="challenge-fields" id="challengePowerFields">
+              <p class="challenge-type-desc">Hit your target speed the required number of times.</p>
+              <div class="challenge-field-row">
+                <div class="challenge-field-group">
+                  <label class="challenge-lbl">Target speed (<span class="challenge-unit">mph</span>)</label>
+                  <input type="number" class="challenge-input" id="chalTargetSpeedPow" min="1" max="60" step="0.5" value="20">
+                </div>
+                <div class="challenge-field-group">
+                  <label class="challenge-lbl">Required successes</label>
+                  <input type="number" class="challenge-input" id="chalRequiredSuccesses" min="1" max="20" step="1" value="3">
+                </div>
+              </div>
+            </div>
+            <!-- Consistency fields -->
+            <div class="challenge-fields" id="challengeConsistFields" hidden>
+              <p class="challenge-type-desc">Keep every break within a tight speed band.</p>
+              <div class="challenge-field-row">
+                <div class="challenge-field-group">
+                  <label class="challenge-lbl">Target speed (<span class="challenge-unit">mph</span>)</label>
+                  <input type="number" class="challenge-input" id="chalTargetSpeedCon" min="1" max="60" step="0.5" value="20">
+                </div>
+                <div class="challenge-field-group">
+                  <label class="challenge-lbl">Tolerance (<span class="challenge-unit-tol">±mph</span>)</label>
+                  <input type="number" class="challenge-input" id="chalTolerance" min="0.1" max="10" step="0.1" value="0.5">
+                </div>
+              </div>
+              <div class="challenge-field-group">
+                <label class="challenge-lbl">Total attempts</label>
+                <input type="number" class="challenge-input challenge-input--wide" id="chalTotalAttempts" min="3" max="30" step="1" value="10">
+              </div>
+            </div>
+            <button class="challenge-start-btn" id="challengeStartBtn">Start Challenge</button>
           </div>
-          <p class="pro-active-desc">Set a target speed and train to hit it consistently. This feature is in active development — it'll appear here automatically when it launches.</p>
+
+          <!-- ② Active progress view -->
+          <div id="challengeProgress" hidden>
+            <div class="challenge-progress-header">
+              <div>
+                <div class="challenge-progress-type" id="chalProgressType">⚡ Power Challenge</div>
+                <div class="challenge-progress-target" id="chalProgressTarget">Target: ≥ 20 mph</div>
+              </div>
+              <button class="challenge-cancel-btn" id="challengeCancelBtn">Cancel</button>
+            </div>
+            <div class="challenge-bar-wrap">
+              <div class="challenge-bar" id="chalProgressBar"></div>
+            </div>
+            <div class="challenge-progress-stat" id="chalProgressStat">0 / 3 successful breaks</div>
+            <div class="challenge-progress-sub" id="chalProgressSub"></div>
+          </div>
+
+          <!-- ③ Completion view -->
+          <div id="challengeComplete" hidden>
+            <div class="challenge-complete-icon" id="chalCompleteIcon">🏆</div>
+            <div class="challenge-complete-title" id="chalCompleteTitle">Challenge Complete!</div>
+            <div class="challenge-complete-summary" id="chalCompleteSummary"></div>
+            <button class="challenge-start-btn" id="challengeNewBtn" style="margin-top:14px">New Challenge</button>
+          </div>
+
         </div>
 
         <!-- Export & Sharing — locked (free users) -->
@@ -1040,6 +1104,16 @@
   <div id="adBanner" class="ad-banner" hidden aria-hidden="true"></div>
 
   <!-- ════════════════════════════════════════════ BOTTOM NAV ══ -->
+  <!-- Challenge active strip — fixed above bottom nav -->
+  <div class="challenge-strip" id="challengeStrip" hidden>
+    <div class="challenge-strip-inner">
+      <span class="challenge-strip-badge" id="chalStripBadge">⚡</span>
+      <span class="challenge-strip-progress" id="chalStripProgress">0 / 3 breaks ≥ 20 mph</span>
+      <button class="challenge-strip-view" id="chalStripView">View</button>
+      <button class="challenge-strip-cancel" id="chalStripCancel" title="Cancel challenge">✕</button>
+    </div>
+  </div>
+
   <nav class="bottom-nav" id="bottomNav" hidden>
     <button class="bnav-btn active" id="bnavAnalyze">
       <span class="bnav-icon">◎</span>
