@@ -30,6 +30,11 @@ const OUTCOME_CONFIG = {
   TAG_DELAY_MS:   1100,   // ms to wait after results screen before sheet appears
 };
 
+// ─── Speed Meter Scale ────────────────────────────────────────────────────────
+// Fixed mph range used by the Compare view power-meter bars.
+const SPEED_METER_MIN_MPH = 10;
+const SPEED_METER_MAX_MPH = 35;
+
 function loadSettings() {
   try {
     const s = JSON.parse(localStorage.getItem("bsa_settings") || "{}");
@@ -264,6 +269,10 @@ const proCoachPreview    = document.getElementById("proCoachPreview");
 const proConsistPreview  = document.getElementById("proConsistPreview");
 const consistChartCard   = document.getElementById("consistChartCard");
 const proExtrasSection   = document.getElementById("proExtrasSection");
+const challengeLockedCard = document.getElementById("challengeLockedCard");
+const challengeActiveCard = document.getElementById("challengeActiveCard");
+const exportLockedCard    = document.getElementById("exportLockedCard");
+const exportActiveCard    = document.getElementById("exportActiveCard");
 const settingsProLbl     = document.getElementById("settingsProLbl");
 const settingsProIcon    = document.getElementById("settingsProIcon");
 const settingsProBtn     = document.getElementById("settingsProBtn");
@@ -656,7 +665,7 @@ function setActiveProfile(profile) {
     histAccordionLoaded = false;
   }
   // Refresh stats dashboard immediately if it's visible and on a personal tab
-  if (!screenDashboard.hidden && dashActiveTabId !== "compare") {
+  if (profile && !screenDashboard.hidden && dashActiveTabId !== "compare") {
     switchDashTab(profile.id);
   } else if (!screenDashboard.hidden) {
     buildDashTabs(); // update tab highlight only
@@ -3123,10 +3132,12 @@ function computeRelativeBars(selArr, statsMap) {
     return out;
   }
 
-  // Speed bars: fixed scale 10–35 mph (absolute position, not relative to peers)
-  function mapSpeedToPercent(mph, min = 10, max = 35) {
+  // Speed bars: fixed scale anchored to SPEED_METER_MIN/MAX_MPH constants
+  function mapSpeedToPercent(mph) {
     if (mph == null) return null;
-    return Math.min(100, Math.max(0, (mph - min) / (max - min) * 100));
+    return Math.min(100, Math.max(0,
+      (mph - SPEED_METER_MIN_MPH) / (SPEED_METER_MAX_MPH - SPEED_METER_MIN_MPH) * 100
+    ));
   }
 
   const consistBars = normArr(consistVals, false); // lower stdDev → wider bar (relative)
@@ -3528,25 +3539,21 @@ function applyProGating() {
   // Coaching section: show real section for Pro, preview card for free (only when visible)
   const coachShouldShow = !coachingSection.hidden || !proCoachPreview.hidden;
   if (coachShouldShow) {
-    coachingSection.hidden = isPro ? false : true;
-    proCoachPreview.hidden = isPro ? true  : false;
+    coachingSection.hidden = !isPro;
+    proCoachPreview.hidden =  isPro;
   }
 
   // Consistency chart: show real chart for Pro, preview card for free (only when trends visible)
   if (!trendsSection.hidden) {
-    consistChartCard.hidden  = isPro ? false : true;
-    proConsistPreview.hidden = isPro ? true  : false;
+    consistChartCard.hidden  = !isPro;
+    proConsistPreview.hidden =  isPro;
   }
 
   // Pro extras section — toggle locked vs active cards based on Pro status
-  const challengeLocked  = document.getElementById("challengeLockedCard");
-  const challengeActive  = document.getElementById("challengeActiveCard");
-  const exportLocked     = document.getElementById("exportLockedCard");
-  const exportActive     = document.getElementById("exportActiveCard");
-  if (challengeLocked)  challengeLocked.hidden  = isPro;
-  if (challengeActive)  challengeActive.hidden  = !isPro;
-  if (exportLocked)     exportLocked.hidden     = isPro;
-  if (exportActive)     exportActive.hidden     = !isPro;
+  if (challengeLockedCard)  challengeLockedCard.hidden  = isPro;
+  if (challengeActiveCard)  challengeActiveCard.hidden  = !isPro;
+  if (exportLockedCard)     exportLockedCard.hidden     = isPro;
+  if (exportActiveCard)     exportActiveCard.hidden     = !isPro;
   proExtrasSection.hidden = activeProfile == null;
 }
 
@@ -3568,6 +3575,10 @@ function updateProGatingForDashboard(hasData) {
 
 // ─── CSV Export ────────────────────────────────────────────────────────────
 function exportSessionsCsv() {
+  if (!BILLING.isProUser()) {
+    openProModal("export");
+    return;
+  }
   if (!historyData || historyData.length === 0) {
     showToast("No sessions to export yet.");
     return;
@@ -3621,7 +3632,6 @@ document.addEventListener("click", e => {
 // Settings Pro button
 settingsProBtn.addEventListener("click", () => {
   if (BILLING.isProUser()) {
-    // TODO: open Stripe Customer Portal when available
     showToast("Manage your subscription at promethean-games.com/account");
   } else {
     openProModal("all");
