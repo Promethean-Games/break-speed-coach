@@ -1,12 +1,17 @@
-"use strict";
-
-const CACHE = "bsc-ghp-v1";
+/**
+ * Service Worker — Break Session Analyzer
+ * Strategy: cache-first for static assets, network-first for API calls.
+ */
+const CACHE = "bsc-v3";
 const STATIC = [
   "/",
-  "/index.html",
+  "/styles.css",
+  "/app.js",
+  "/favicon.svg",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
+  "https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js",
 ];
 
 self.addEventListener("install", e => {
@@ -24,16 +29,27 @@ self.addEventListener("activate", e => {
 });
 
 self.addEventListener("fetch", e => {
-  if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
-  if (url.origin !== self.location.origin) return;
+
+  // Network-first for API routes
+  if (url.pathname.startsWith("/api/")) {
+    e.respondWith(
+      fetch(e.request).catch(() => new Response(
+        JSON.stringify({ error: "offline" }),
+        { status: 503, headers: { "Content-Type": "application/json" } }
+      ))
+    );
+    return;
+  }
+
+  // Cache-first for everything else
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      const net = fetch(e.request).then(resp => {
-        if (resp.ok) caches.open(CACHE).then(c => c.put(e.request, resp.clone()));
-        return resp;
-      });
-      return cached || net;
-    })
+    caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
+      if (res.ok && e.request.method === "GET") {
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+      }
+      return res;
+    }))
   );
 });
