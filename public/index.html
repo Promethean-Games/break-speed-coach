@@ -972,12 +972,20 @@
                 </div>
                 <div class="challenge-field-group">
                   <label class="challenge-lbl">Tolerance (<span class="challenge-unit-tol">±mph</span>)</label>
-                  <input type="number" class="challenge-input" id="chalTolerance" min="0.1" max="10" step="0.1" value="0.5">
+                  <div class="challenge-stepper">
+                    <button class="challenge-stepper-btn" id="chalTolDec" type="button">−</button>
+                    <span class="challenge-stepper-val" id="chalToleranceDisplay">0.5</span>
+                    <input type="hidden" id="chalTolerance" value="0.5">
+                    <button class="challenge-stepper-btn" id="chalTolInc" type="button">+</button>
+                  </div>
                 </div>
               </div>
-              <div class="challenge-field-group">
-                <label class="challenge-lbl">Total attempts</label>
-                <input type="number" class="challenge-input challenge-input--wide" id="chalTotalAttempts" min="3" max="30" step="1" value="10">
+              <div class="challenge-field-group" style="margin-top:2px">
+                <div class="challenge-attempts-header">
+                  <label class="challenge-lbl">Total attempts</label>
+                  <span class="challenge-attempts-val" id="chalTotalAttemptsDisplay">5</span>
+                </div>
+                <input type="range" class="challenge-slider" id="chalTotalAttempts" min="1" max="10" step="1" value="5">
               </div>
             </div>
             <button class="challenge-start-btn" id="challengeStartBtn">Start Challenge</button>
