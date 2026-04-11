@@ -3526,14 +3526,12 @@ function applyProGating() {
     settingsProLbl.textContent  = "Pro — Active";
     settingsProIcon.textContent = "★";
     settingsProIcon.style.color = "#ffd93d";
-    settingsProBtn.textContent  = "Manage Subscription";
-    settingsProBtn.classList.add("settings-pro-btn--active");
+    settingsProBtn.hidden       = true;
   } else {
     settingsProLbl.textContent  = "Free Plan";
     settingsProIcon.textContent = "◎";
     settingsProIcon.style.color = "";
-    settingsProBtn.textContent  = "Upgrade to Pro";
-    settingsProBtn.classList.remove("settings-pro-btn--active");
+    settingsProBtn.hidden       = false;
   }
 
   // Coaching section: show real section for Pro, preview card for free (only when visible)
@@ -3631,11 +3629,7 @@ document.addEventListener("click", e => {
 
 // Settings Pro button
 settingsProBtn.addEventListener("click", () => {
-  if (BILLING.isProUser()) {
-    showToast("Manage your subscription at promethean-games.com/account");
-  } else {
-    openProModal("all");
-  }
+  openProModal("all");
 });
 
 // ─── Stripe Return Handler ─────────────────────────────────────────────────────
