@@ -3058,7 +3058,7 @@ function computeWinners(selArr, statsMap) {
   }
 
   return {
-    zone:    winners(withData, s => s.bestHighSpeed),
+    zone:    winners(withData, s => s.allTimeTopSpeed ?? s.bestHighSpeed),
     avg:     winners(withData, s => s.avgSpeed),
     consist: winners(withData, s => s.consistencyStdDev, false), // lower = better
   };
@@ -3077,7 +3077,7 @@ function computeRanks(selArr, statsMap) {
     return ranks;
   }
 
-  const byZone    = selArr.filter(p => statsMap[p.id] && statsMap[p.id].bestHighSpeed != null).map(p => ({ id: p.id, v: statsMap[p.id].bestHighSpeed })).sort((a, b) => b.v - a.v);
+  const byZone    = selArr.filter(p => statsMap[p.id] && (statsMap[p.id].allTimeTopSpeed ?? statsMap[p.id].bestHighSpeed) != null).map(p => ({ id: p.id, v: statsMap[p.id].allTimeTopSpeed ?? statsMap[p.id].bestHighSpeed })).sort((a, b) => b.v - a.v);
   const byAvg     = selArr.filter(p => statsMap[p.id] && statsMap[p.id].avgSpeed != null).map(p => ({ id: p.id, v: statsMap[p.id].avgSpeed })).sort((a, b) => b.v - a.v);
   const byConsist = selArr.filter(p => statsMap[p.id] && statsMap[p.id].consistencyStdDev != null).map(p => ({ id: p.id, v: statsMap[p.id].consistencyStdDev })).sort((a, b) => a.v - b.v);
 
@@ -3119,7 +3119,7 @@ function computeRelativeBars(selArr, statsMap) {
     });
   }
 
-  const zoneVals    = selArr.filter(p => statsMap[p.id]?.bestHighSpeed != null).map(p => ({ id: p.id, v: statsMap[p.id].bestHighSpeed }));
+  const zoneVals    = selArr.filter(p => (statsMap[p.id]?.allTimeTopSpeed ?? statsMap[p.id]?.bestHighSpeed) != null).map(p => ({ id: p.id, v: statsMap[p.id].allTimeTopSpeed ?? statsMap[p.id].bestHighSpeed }));
   const avgVals     = selArr.filter(p => statsMap[p.id]?.avgSpeed != null).map(p => ({ id: p.id, v: statsMap[p.id].avgSpeed }));
   const consistVals = selArr.filter(p => statsMap[p.id]?.consistencyStdDev != null).map(p => ({ id: p.id, v: statsMap[p.id].consistencyStdDev }));
 
@@ -3269,7 +3269,7 @@ function renderCmpCards() {
     const sa = cmpStatsCache[a.id]; const sb = cmpStatsCache[b.id];
     if (!sa && !sb) return 0; if (!sa) return 1; if (!sb) return -1;
     if (cmpSortBy === "avgSpeed")    return (sb.avgSpeed || 0) - (sa.avgSpeed || 0);
-    if (cmpSortBy === "bestHigh")    return (sb.bestHighSpeed || 0) - (sa.bestHighSpeed || 0);
+    if (cmpSortBy === "bestHigh")    return (sb.allTimeTopSpeed ?? sb.bestHighSpeed ?? 0) - (sa.allTimeTopSpeed ?? sa.bestHighSpeed ?? 0);
     if (cmpSortBy === "consistency") return (sa.consistencyStdDev || 999) - (sb.consistencyStdDev || 999);
     if (cmpSortBy === "sessions")    return (sb.totalSessions || 0) - (sa.totalSessions || 0);
     return 0;
@@ -3391,7 +3391,7 @@ function renderCmpCards() {
       noData.innerHTML = '<span class="cmp-metric-val">No data yet</span>';
       metrics.appendChild(noData);
     } else {
-      metrics.appendChild(metricRow("Fastest Break", s.bestHighSpeed, d?.zone, b.zone, true, "cmp-bar--speed"));
+      metrics.appendChild(metricRow("Fastest Break", s.allTimeTopSpeed ?? s.bestHighSpeed, d?.zone, b.zone, true, "cmp-bar--speed"));
       metrics.appendChild(metricRow("Avg Speed",     s.avgSpeed,      d?.avg,  b.avg,  true, "cmp-bar--speed"));
       // Control tier row (replaces raw consistency number)
       const cdelta = d?.consist;
