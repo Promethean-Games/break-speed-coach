@@ -456,7 +456,18 @@ function setActiveTab(tab) {
 
 // Bottom nav
 bnavAnalyze.addEventListener("click", () => showScreen(screenHero));
-bnavStats.addEventListener("click",   () => { showScreen(screenDashboard); loadDashboard(); });
+bnavStats.addEventListener("click",   () => {
+  showScreen(screenDashboard);
+  if (dashActiveTabId === "compare") {
+    if (compareViewEl) compareViewEl.hidden = false;
+    if (personalViewEl) personalViewEl.hidden = true;
+    loadCompareView();
+  } else {
+    if (compareViewEl) compareViewEl.hidden = true;
+    if (personalViewEl) personalViewEl.hidden = false;
+    loadDashboard();
+  }
+});
 bnavSettings.addEventListener("click", () => {
   settingsOverlay.hidden = false;
   bnavSettings.classList.toggle("active", true);
@@ -587,11 +598,14 @@ profileModalSave.addEventListener("click", async () => {
       const p = await apiPost("/profiles", { displayName: name, colorAccent: selectedColor });
       profiles.push(p);
       if (!activeProfile) setActiveProfile(p);
+      buildDashTabs();
     } else {
       const p = await apiPut("/profiles/" + profileModalTarget.id, { displayName: name, colorAccent: selectedColor });
       const idx = profiles.findIndex(x => x.id === p.id);
       if (idx >= 0) profiles[idx] = p;
       if (activeProfile?.id === p.id) { activeProfile = p; updateProfilePills(); }
+      invalidateCmpCache(p.id);
+      buildDashTabs();
     }
     profileModal.hidden = false;
   } catch (err) {
@@ -614,11 +628,15 @@ async function deleteProfileFlow(profile) {
   try {
     await apiDelete("/profiles/" + profile.id);
     profiles = profiles.filter(p => p.id !== profile.id);
+    invalidateCmpCache(profile.id);
+    cmpSelectedIds.delete(profile.id);
     if (activeProfile?.id === profile.id) {
       activeProfile = profiles[0] || null;
       saveActiveProfileId(activeProfile?.id || null);
       updateProfilePills();
+      if (activeProfile) dashActiveTabId = activeProfile.id;
     }
+    buildDashTabs();
     showToast("Player deleted");
   } catch (err) {
     showToast("Error: " + err.message);
@@ -637,8 +655,12 @@ function setActiveProfile(profile) {
   } else {
     histAccordionLoaded = false;
   }
-  // Refresh stats dashboard immediately if it's the visible screen
-  if (!screenDashboard.hidden) loadDashboard();
+  // Refresh stats dashboard immediately if it's visible and on a personal tab
+  if (!screenDashboard.hidden && dashActiveTabId !== "compare") {
+    switchDashTab(profile.id);
+  } else if (!screenDashboard.hidden) {
+    buildDashTabs(); // update tab highlight only
+  }
 }
 
 // ─── Load profiles on startup ─────────────────────────────────────────────────
@@ -654,6 +676,7 @@ async function loadProfiles() {
     activeProfile = null;
   }
   updateProfilePills();
+  buildDashTabs();
 }
 
 // ─── Tracker ─────────────────────────────────────────────────────────────────
@@ -1192,6 +1215,8 @@ async function runAnalysis(source) {
     // Update active challenge progress after a saved break
     const best = data.session?.bestBreak || data.session?.topEstimate;
     if (best?.speedMph != null) onBreakSaved(best.speedMph);
+    // Invalidate compare cache for this profile so next compare visit re-fetches
+    if (data.savedSession) invalidateCmpCache(activeProfile?.id);
 
     // Show outcome tag sheet after a short delay so the user can see their result first
     clearTimeout(tagSheetTimer);
@@ -2842,6 +2867,459 @@ chalStripView?.addEventListener("click", () => {
 
 // Init: update labels once settings are loaded (called again after settings change)
 setTimeout(chalUpdateUnitLabels, 100);
+
+// ─── Dashboard Tab Strip & Compare View ──────────────────────────────────────
+
+let dashActiveTabId  = null;     // "compare" | profileId
+let cmpSelectedIds   = new Set();
+let cmpBaselineId    = null;
+let cmpSortBy        = "avgSpeed";
+let cmpStatsCache    = {};       // profileId → stats
+
+const dashTabStrip       = document.getElementById("dashTabStrip");
+const compareViewEl      = document.getElementById("compareView");
+const personalViewEl     = document.getElementById("personalView");
+const cmpPillsRow        = document.getElementById("cmpPillsRow");
+const cmpBaselineSelect  = document.getElementById("cmpBaselineSelect");
+const cmpSortSelect      = document.getElementById("cmpSortSelect");
+const cmpCardsEl         = document.getElementById("cmpCards");
+const cmpEmptyEl         = document.getElementById("cmpEmpty");
+const cmpWinZoneEl       = document.getElementById("cmpWinZone");
+const cmpWinAvgEl        = document.getElementById("cmpWinAvg");
+const cmpWinConsistEl    = document.getElementById("cmpWinConsist");
+
+// ── Build the tab strip from current profiles ────────────────────────────────
+function buildDashTabs() {
+  if (!dashTabStrip) return;
+  dashTabStrip.innerHTML = "";
+
+  // Compare tab
+  const cmpTab = document.createElement("button");
+  cmpTab.className = "dash-tab dash-tab--compare" + (dashActiveTabId === "compare" ? " active" : "");
+  cmpTab.dataset.tabid = "compare";
+  cmpTab.textContent = "⊞ Compare";
+  cmpTab.addEventListener("click", () => switchDashTab("compare"));
+  dashTabStrip.appendChild(cmpTab);
+
+  // One tab per profile
+  profiles.forEach(p => {
+    const tab = document.createElement("button");
+    tab.className = "dash-tab" + (dashActiveTabId === p.id ? " active" : "");
+    tab.dataset.tabid = p.id;
+
+    const dot = document.createElement("span");
+    dot.className = "dash-tab-dot";
+    dot.style.background = p.colorAccent || "#aaa";
+    tab.appendChild(dot);
+    tab.appendChild(document.createTextNode(p.displayName));
+
+    tab.addEventListener("click", () => {
+      if (activeProfile?.id !== p.id) setActiveProfile(p);
+      switchDashTab(p.id);
+    });
+    dashTabStrip.appendChild(tab);
+  });
+
+  // If no active tab is set yet, default to first profile or compare
+  if (!dashActiveTabId) {
+    dashActiveTabId = profiles.length > 0 ? profiles[0].id : "compare";
+  }
+  // Highlight correct tab
+  dashTabStrip.querySelectorAll(".dash-tab").forEach(t => {
+    t.classList.toggle("active", t.dataset.tabid === dashActiveTabId);
+  });
+}
+
+// ── Switch between compare and personal views ────────────────────────────────
+function switchDashTab(tabId) {
+  dashActiveTabId = tabId;
+  dashTabStrip?.querySelectorAll(".dash-tab").forEach(t => {
+    t.classList.toggle("active", t.dataset.tabid === tabId);
+  });
+  const isCompare = tabId === "compare";
+  if (compareViewEl) compareViewEl.hidden = !isCompare;
+  if (personalViewEl) personalViewEl.hidden = isCompare;
+  if (isCompare) {
+    loadCompareView();
+  } else {
+    loadDashboard();
+  }
+}
+
+// ── Fetch & render Compare view ───────────────────────────────────────────────
+async function loadCompareView() {
+  if (profiles.length === 0) {
+    if (cmpCardsEl) cmpCardsEl.innerHTML = "";
+    if (cmpEmptyEl) cmpEmptyEl.hidden = false;
+    renderCmpWinners({});
+    return;
+  }
+
+  // Fetch missing stats
+  const missing = profiles.filter(p => !cmpStatsCache[p.id]);
+  if (missing.length > 0) {
+    const results = await Promise.allSettled(
+      missing.map(p => apiGet("/profiles/" + p.id + "/stats"))
+    );
+    results.forEach((r, i) => {
+      if (r.status === "fulfilled") cmpStatsCache[missing[i].id] = r.value;
+    });
+  }
+
+  // Ensure all profiles are selected by default (first visit)
+  if (cmpSelectedIds.size === 0) profiles.forEach(p => cmpSelectedIds.add(p.id));
+
+  // Ensure baseline is valid
+  const selArr = profiles.filter(p => cmpSelectedIds.has(p.id));
+  if (!cmpBaselineId || !cmpSelectedIds.has(cmpBaselineId)) {
+    cmpBaselineId = selArr[0]?.id || null;
+  }
+
+  renderCmpControls();
+  renderCmpCards();
+}
+
+// ── Render profile toggle pills + baseline/sort controls ──────────────────────
+function renderCmpControls() {
+  // Pills
+  if (cmpPillsRow) {
+    cmpPillsRow.innerHTML = "";
+    profiles.forEach(p => {
+      const pill = document.createElement("button");
+      pill.className = "cmp-pill" + (cmpSelectedIds.has(p.id) ? " selected" : "");
+      pill.dataset.pid = p.id;
+
+      const dot = document.createElement("span");
+      dot.className = "cmp-pill-dot";
+      dot.style.background = p.colorAccent || "#aaa";
+      pill.appendChild(dot);
+      pill.appendChild(document.createTextNode(p.displayName));
+
+      const check = document.createElement("span");
+      check.className = "cmp-pill-check";
+      check.textContent = cmpSelectedIds.has(p.id) ? "✓" : "";
+      pill.appendChild(check);
+
+      pill.addEventListener("click", () => {
+        if (cmpSelectedIds.has(p.id) && cmpSelectedIds.size > 1) {
+          cmpSelectedIds.delete(p.id);
+          if (cmpBaselineId === p.id) {
+            const remaining = profiles.filter(x => cmpSelectedIds.has(x.id));
+            cmpBaselineId = remaining[0]?.id || null;
+          }
+        } else if (!cmpSelectedIds.has(p.id)) {
+          cmpSelectedIds.add(p.id);
+        }
+        renderCmpControls();
+        renderCmpCards();
+      });
+      cmpPillsRow.appendChild(pill);
+    });
+  }
+
+  // Baseline select
+  const selArr = profiles.filter(p => cmpSelectedIds.has(p.id));
+  if (cmpBaselineSelect) {
+    cmpBaselineSelect.innerHTML = "";
+    selArr.forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = p.displayName;
+      if (p.id === cmpBaselineId) opt.selected = true;
+      cmpBaselineSelect.appendChild(opt);
+    });
+  }
+
+  // Sort select — preserve current selection
+  if (cmpSortSelect) cmpSortSelect.value = cmpSortBy;
+}
+
+// ── Compute helpers ───────────────────────────────────────────────────────────
+function computeWinners(selArr, statsMap) {
+  if (selArr.length === 0) return { zone: ["—"], avg: ["—"], consist: ["—"] };
+  const withData = selArr.filter(p => statsMap[p.id]);
+
+  function winners(arr, fn, higher = true) {
+    if (!arr.length) return ["—"];
+    const vals = arr.map(p => ({ p, v: fn(statsMap[p.id]) })).filter(x => x.v != null);
+    if (!vals.length) return ["—"];
+    const best = higher ? Math.max(...vals.map(x => x.v)) : Math.min(...vals.map(x => x.v));
+    return vals.filter(x => x.v === best).map(x => x.p.displayName);
+  }
+
+  return {
+    zone:    winners(withData, s => s.bestHighSpeed),
+    avg:     winners(withData, s => s.avgSpeed),
+    consist: winners(withData, s => s.consistencyStdDev, false), // lower = better
+  };
+}
+
+function computeRanks(selArr, statsMap) {
+  const ranks = {};
+  selArr.forEach(p => ranks[p.id] = {});
+
+  function rank(fn, higher = true) {
+    const vals = selArr
+      .filter(p => statsMap[p.id] && fn(statsMap[p.id]) != null)
+      .map(p => ({ id: p.id, v: fn(statsMap[p.id]) }))
+      .sort((a, b) => higher ? b.v - a.v : a.v - b.v);
+    vals.forEach((item, i) => { ranks[item.id]._rank_pending = i + 1; });
+    return ranks;
+  }
+
+  const byZone    = selArr.filter(p => statsMap[p.id] && statsMap[p.id].bestHighSpeed != null).map(p => ({ id: p.id, v: statsMap[p.id].bestHighSpeed })).sort((a, b) => b.v - a.v);
+  const byAvg     = selArr.filter(p => statsMap[p.id] && statsMap[p.id].avgSpeed != null).map(p => ({ id: p.id, v: statsMap[p.id].avgSpeed })).sort((a, b) => b.v - a.v);
+  const byConsist = selArr.filter(p => statsMap[p.id] && statsMap[p.id].consistencyStdDev != null).map(p => ({ id: p.id, v: statsMap[p.id].consistencyStdDev })).sort((a, b) => a.v - b.v);
+
+  byZone.forEach((x, i)    => ranks[x.id].zone    = i + 1);
+  byAvg.forEach((x, i)     => ranks[x.id].avg     = i + 1);
+  byConsist.forEach((x, i) => ranks[x.id].consist = i + 1);
+
+  return ranks;
+}
+
+function computeBaselineDeltas(selArr, statsMap, baselineId) {
+  const bl = statsMap[baselineId];
+  const deltas = {};
+  selArr.forEach(p => {
+    const s = statsMap[p.id];
+    if (!s || !bl || p.id === baselineId) { deltas[p.id] = null; return; }
+    deltas[p.id] = {
+      zone:    bl.bestHighSpeed != null && s.bestHighSpeed != null ? s.bestHighSpeed - bl.bestHighSpeed : null,
+      avg:     bl.avgSpeed != null && s.avgSpeed != null ? s.avgSpeed - bl.avgSpeed : null,
+      // consistency: positive delta = other is MORE consistent (lower stdDev)
+      consist: bl.consistencyStdDev != null && s.consistencyStdDev != null ? bl.consistencyStdDev - s.consistencyStdDev : null,
+    };
+  });
+  return deltas;
+}
+
+function computeRelativeBars(selArr, statsMap) {
+  const bars = {};
+  selArr.forEach(p => bars[p.id] = {});
+
+  function normalize(fn, higher = true) {
+    const vals = selArr.filter(p => statsMap[p.id] && fn(statsMap[p.id]) != null).map(p => ({ id: p.id, v: fn(statsMap[p.id]) }));
+    if (!vals.length) return;
+    const min = Math.min(...vals.map(x => x.v));
+    const max = Math.max(...vals.map(x => x.v));
+    const span = max - min;
+    vals.forEach(({ id, v }) => {
+      bars[id][fn.name || "val"] = span > 0 ? (higher ? (v - min) / span : (max - v) / span) * 100 : 50;
+    });
+  }
+
+  const zoneVals    = selArr.filter(p => statsMap[p.id]?.bestHighSpeed != null).map(p => ({ id: p.id, v: statsMap[p.id].bestHighSpeed }));
+  const avgVals     = selArr.filter(p => statsMap[p.id]?.avgSpeed != null).map(p => ({ id: p.id, v: statsMap[p.id].avgSpeed }));
+  const consistVals = selArr.filter(p => statsMap[p.id]?.consistencyStdDev != null).map(p => ({ id: p.id, v: statsMap[p.id].consistencyStdDev }));
+
+  function normArr(arr, higher = true) {
+    if (!arr.length) return {};
+    const min = Math.min(...arr.map(x => x.v));
+    const max = Math.max(...arr.map(x => x.v));
+    const span = max - min;
+    const out = {};
+    arr.forEach(({ id, v }) => { out[id] = span > 0 ? (higher ? (v - min) / span : (max - v) / span) * 100 : 50; });
+    return out;
+  }
+
+  const zoneBars    = normArr(zoneVals, true);
+  const avgBars     = normArr(avgVals, true);
+  const consistBars = normArr(consistVals, false); // lower stdDev → wider bar
+
+  selArr.forEach(p => {
+    bars[p.id] = {
+      zone:    zoneBars[p.id] ?? null,
+      avg:     avgBars[p.id] ?? null,
+      consist: consistBars[p.id] ?? null,
+    };
+  });
+  return bars;
+}
+
+// ── Render winner strip ───────────────────────────────────────────────────────
+function renderCmpWinners(statsMap) {
+  const selArr = profiles.filter(p => cmpSelectedIds.has(p.id));
+  const { zone, avg, consist } = computeWinners(selArr, statsMap);
+  const fmt = names => {
+    const out = names.join(" & ");
+    const el = document.createElement("span");
+    if (names.length > 1) el.classList.add("cmp-winner-val--tie");
+    el.textContent = out;
+    return out;
+  };
+  if (cmpWinZoneEl)    { cmpWinZoneEl.textContent    = zone.join(" & ");    if (zone.length > 1)    cmpWinZoneEl.classList.add("cmp-winner-val--tie");    else cmpWinZoneEl.classList.remove("cmp-winner-val--tie"); }
+  if (cmpWinAvgEl)     { cmpWinAvgEl.textContent     = avg.join(" & ");     if (avg.length > 1)     cmpWinAvgEl.classList.add("cmp-winner-val--tie");     else cmpWinAvgEl.classList.remove("cmp-winner-val--tie"); }
+  if (cmpWinConsistEl) { cmpWinConsistEl.textContent = consist.join(" & "); if (consist.length > 1) cmpWinConsistEl.classList.add("cmp-winner-val--tie"); else cmpWinConsistEl.classList.remove("cmp-winner-val--tie"); }
+}
+
+// ── Render comparison cards ───────────────────────────────────────────────────
+function renderCmpCards() {
+  if (!cmpCardsEl) return;
+  cmpCardsEl.innerHTML = "";
+
+  let selArr = profiles.filter(p => cmpSelectedIds.has(p.id));
+
+  if (selArr.length < 2) {
+    if (cmpEmptyEl) cmpEmptyEl.hidden = false;
+    renderCmpWinners({});
+    return;
+  }
+  if (cmpEmptyEl) cmpEmptyEl.hidden = true;
+
+  // Sort
+  selArr = [...selArr].sort((a, b) => {
+    const sa = cmpStatsCache[a.id]; const sb = cmpStatsCache[b.id];
+    if (!sa && !sb) return 0; if (!sa) return 1; if (!sb) return -1;
+    if (cmpSortBy === "avgSpeed")    return (sb.avgSpeed || 0) - (sa.avgSpeed || 0);
+    if (cmpSortBy === "bestHigh")    return (sb.bestHighSpeed || 0) - (sa.bestHighSpeed || 0);
+    if (cmpSortBy === "consistency") return (sa.consistencyStdDev || 999) - (sb.consistencyStdDev || 999);
+    if (cmpSortBy === "sessions")    return (sb.totalSessions || 0) - (sa.totalSessions || 0);
+    return 0;
+  });
+
+  renderCmpWinners(cmpStatsCache);
+  const ranks  = computeRanks(selArr, cmpStatsCache);
+  const deltas = computeBaselineDeltas(selArr, cmpStatsCache, cmpBaselineId);
+  const bars   = computeRelativeBars(selArr, cmpStatsCache);
+
+  selArr.forEach(p => {
+    const s       = cmpStatsCache[p.id];
+    const isBase  = p.id === cmpBaselineId;
+    const d       = deltas[p.id];
+    const b       = bars[p.id] || {};
+    const r       = ranks[p.id] || {};
+
+    const card = document.createElement("div");
+    card.className = "cmp-card" + (isBase ? " cmp-card--baseline" : "");
+
+    // Header
+    const hdr = document.createElement("div");
+    hdr.className = "cmp-card-header";
+
+    const nameRow = document.createElement("div");
+    nameRow.className = "cmp-card-name-row";
+    const dot = document.createElement("span");
+    dot.className = "cmp-card-dot";
+    dot.style.background = p.colorAccent || "#aaa";
+    const nameEl = document.createElement("span");
+    nameEl.className = "cmp-card-name";
+    nameEl.textContent = p.displayName;
+    nameRow.appendChild(dot);
+    nameRow.appendChild(nameEl);
+    if (isBase) {
+      const badge = document.createElement("span");
+      badge.className = "cmp-baseline-badge";
+      badge.textContent = "BASELINE";
+      nameRow.appendChild(badge);
+    }
+    hdr.appendChild(nameRow);
+
+    const dateEl = document.createElement("div");
+    dateEl.className = "cmp-card-date";
+    dateEl.textContent = s ? `${s.totalSessions || 0} session${s.totalSessions !== 1 ? "s" : ""}` : "No data";
+    hdr.appendChild(dateEl);
+    card.appendChild(hdr);
+
+    // Rank badges
+    const rankRow = document.createElement("div");
+    rankRow.className = "cmp-ranks";
+    const rankDefs = [
+      { lbl: "Zone",    key: "zone" },
+      { lbl: "Avg Spd", key: "avg" },
+      { lbl: "Consist", key: "consist" },
+    ];
+    rankDefs.forEach(({ lbl, key }) => {
+      const rk = r[key];
+      if (rk == null) return;
+      const badge = document.createElement("span");
+      badge.className = `cmp-rank-badge${rk === 1 ? " cmp-rank-badge--1" : rk === 2 ? " cmp-rank-badge--2" : ""}`;
+      badge.textContent = `${lbl} #${rk}`;
+      rankRow.appendChild(badge);
+    });
+    card.appendChild(rankRow);
+
+    // Metrics
+    const metrics = document.createElement("div");
+    metrics.className = "cmp-metrics";
+
+    function metricRow(lbl, valMph, deltaVal, barPct, higherBetter = true) {
+      const row = document.createElement("div");
+      row.className = "cmp-metric";
+      const top = document.createElement("div");
+      top.className = "cmp-metric-row";
+
+      const lblEl = document.createElement("span");
+      lblEl.className = "cmp-metric-lbl";
+      lblEl.textContent = lbl;
+      top.appendChild(lblEl);
+
+      const valWrap = document.createElement("div");
+      valWrap.className = "cmp-metric-val-wrap";
+
+      const valEl = document.createElement("span");
+      valEl.className = "cmp-metric-val";
+      valEl.textContent = valMph != null ? fmtStat(valMph) : "—";
+      valWrap.appendChild(valEl);
+
+      if (!isBase && deltaVal != null) {
+        const deltaEl = document.createElement("span");
+        const isBetter = higherBetter ? deltaVal > 0 : deltaVal < 0;
+        const isNeutral = Math.abs(deltaVal) < 0.05;
+        deltaEl.className = "cmp-delta" + (isNeutral ? " cmp-delta--zero" : isBetter ? " cmp-delta--pos" : " cmp-delta--neg");
+        const displayDelta = convertSpeed(Math.abs(deltaVal)).toFixed(1);
+        deltaEl.textContent = isNeutral ? "=" : (deltaVal > 0 ? "+" : "−") + displayDelta + " " + settings.units;
+        valWrap.appendChild(deltaEl);
+      }
+
+      top.appendChild(valWrap);
+      row.appendChild(top);
+
+      if (barPct != null) {
+        const barWrap = document.createElement("div");
+        barWrap.className = "cmp-bar-wrap";
+        const bar = document.createElement("div");
+        bar.className = "cmp-bar";
+        bar.style.width = Math.max(2, barPct) + "%";
+        barWrap.appendChild(bar);
+        row.appendChild(barWrap);
+      }
+
+      return row;
+    }
+
+    if (!s || s.totalAttempts === 0) {
+      const noData = document.createElement("div");
+      noData.className = "cmp-metric cmp-metric--no-data";
+      noData.innerHTML = '<span class="cmp-metric-val">No data yet</span>';
+      metrics.appendChild(noData);
+    } else {
+      metrics.appendChild(metricRow("Best Zone",   s.bestHighSpeed,     d?.zone,    b.zone,    true));
+      metrics.appendChild(metricRow("Avg Speed",   s.avgSpeed,          d?.avg,     b.avg,     true));
+      // Consistency delta: positive = other is more consistent
+      const cdelta = d?.consist;
+      metrics.appendChild(metricRow("Consistency", s.consistencyStdDev != null ? s.consistencyStdDev : null, cdelta, b.consist, false));
+    }
+    card.appendChild(metrics);
+    cmpCardsEl.appendChild(card);
+  });
+}
+
+// ── Wire compare controls ─────────────────────────────────────────────────────
+cmpBaselineSelect?.addEventListener("change", () => {
+  cmpBaselineId = cmpBaselineSelect.value;
+  renderCmpCards();
+});
+cmpSortSelect?.addEventListener("change", () => {
+  cmpSortBy = cmpSortSelect.value;
+  renderCmpCards();
+});
+
+// ── Invalidate cache on new session saved ─────────────────────────────────────
+function invalidateCmpCache(profileId) {
+  if (profileId) delete cmpStatsCache[profileId];
+  else cmpStatsCache = {};
+}
 
 // ─── Pro Feature Gating ──────────────────────────────────────────────────────
 
