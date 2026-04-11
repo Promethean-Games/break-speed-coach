@@ -1486,6 +1486,13 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
   color: var(--text);
   background: var(--surface3, var(--surface));
 }
+.setup-pro-lock {
+  font-size: 9px;
+  color: #ffd700;
+  vertical-align: super;
+  margin-left: 2px;
+  line-height: 1;
+}
 
 /* Custom size wheel pickers */
 .setup-custom-wrap { display: flex; flex-direction: column; gap: 10px; }
@@ -2241,6 +2248,47 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
   font-size: 15px;
   color: var(--text-dim);
   line-height: 1.5;
+}
+
+/* Pro feature tile inside tutorial steps */
+.hiw-pro-tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-top: 16px;
+  border-radius: 10px;
+  background: linear-gradient(var(--surface2), var(--surface2)) padding-box,
+              linear-gradient(120deg, #c8960c, #ffd700, #ffe066, #ffd700, #c8960c) border-box;
+  border: 2px solid transparent;
+  background-size: 100% 100%, 200% 100%;
+  animation: hiw-pro-shimmer 2.8s ease-in-out infinite;
+}
+@keyframes hiw-pro-shimmer {
+  0%   { background-position: 100% 100%, 0% 50%; }
+  50%  { background-position: 100% 100%, 100% 50%; }
+  100% { background-position: 100% 100%, 0% 50%; }
+}
+.hiw-pro-tile-icon {
+  font-size: 22px;
+  color: #ffd700;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 4px rgba(255, 215, 0, .5));
+}
+.hiw-pro-tile-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hiw-pro-tile-text strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffd700;
+  letter-spacing: .02em;
+}
+.hiw-pro-tile-text span {
+  font-size: 13px;
+  color: var(--text-dim);
 }
 
 /* Navigation bar */
