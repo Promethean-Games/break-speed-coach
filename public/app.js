@@ -276,6 +276,7 @@ const exportActiveCard    = document.getElementById("exportActiveCard");
 const settingsProLbl     = document.getElementById("settingsProLbl");
 const settingsProIcon    = document.getElementById("settingsProIcon");
 const settingsProBtn     = document.getElementById("settingsProBtn");
+const a2hsBtn            = document.getElementById("a2hsBtn");
 
 // History
 const histList      = document.getElementById("histList");
@@ -3631,6 +3632,50 @@ document.addEventListener("click", e => {
 settingsProBtn.addEventListener("click", () => {
   openProModal("all");
 });
+
+// ─── Add to Home Screen ────────────────────────────────────────────────────────
+(function initA2HS() {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+  const isInStandaloneMode = window.matchMedia("(display-mode: standalone)").matches
+    || window.navigator.standalone === true;
+
+  // Already installed — keep button hidden
+  if (isInStandaloneMode) return;
+
+  let deferredPrompt = null;
+
+  if (isIOS) {
+    // iOS Safari doesn't fire beforeinstallprompt; show button with share-sheet guidance
+    a2hsBtn.hidden = false;
+    a2hsBtn.addEventListener("click", () => {
+      showToast("Tap the Share icon  then \"Add to Home Screen\"");
+    });
+    return;
+  }
+
+  // Chrome / Android / Edge — use the native install prompt
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    a2hsBtn.hidden = false;
+  });
+
+  a2hsBtn.addEventListener("click", async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    if (outcome === "accepted") {
+      a2hsBtn.hidden = true;
+    }
+  });
+
+  // Hide after install completes
+  window.addEventListener("appinstalled", () => {
+    a2hsBtn.hidden = true;
+    deferredPrompt = null;
+  });
+}());
 
 // ─── Stripe Return Handler ─────────────────────────────────────────────────────
 // Runs on page load to handle Stripe's success/cancel redirect.
