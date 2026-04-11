@@ -54,12 +54,27 @@ const BILLING = (() => {
     return data;
   }
 
-  // Restore purchase — re-checks if this session has already been verified.
-  // Without a user-auth system, this just checks localStorage.
-  // When you add user accounts, replace this with a real server lookup.
+  // Restore purchase — checks localStorage first (same device), then
+  // does a real server-side Stripe lookup by email (new device / cleared storage).
   async function restorePurchase() {
     const active = isProUser();
     return { restored: active };
+  }
+
+  // Email-based restore: calls /api/stripe/restore to verify against Stripe.
+  async function restoreByEmail(email) {
+    const res = await fetch("/api/stripe/restore", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Restore failed" }));
+      throw new Error(err.error || "Restore failed");
+    }
+    const data = await res.json().catch(() => ({ verified: false }));
+    if (data.verified) _setPro(true);
+    return data;
   }
 
   // Dev/testing helper — not exposed in UI
@@ -67,5 +82,5 @@ const BILLING = (() => {
     try { localStorage.removeItem(PRO_KEY); } catch {}
   }
 
-  return { isProUser, getSubscriptionStatus, initiateCheckout, verifySession, restorePurchase, _setPro, _revoke };
+  return { isProUser, getSubscriptionStatus, initiateCheckout, verifySession, restorePurchase, restoreByEmail, _setPro, _revoke };
 })();
