@@ -3806,6 +3806,7 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
   cursor: pointer;
   -webkit-appearance: none;
   appearance: none;
+  color-scheme: dark;
 }
 .cmp-select:focus { border-color: var(--accent); }
 
@@ -3993,7 +3994,7 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
 [data-theme="light"] .cmp-pill { background: rgba(0,0,0,.05); border-color: rgba(0,0,0,.1); color: rgba(0,0,0,.5); }
 [data-theme="light"] .cmp-pill.selected { background: rgba(0,100,200,.1); border-color: #0060cc; color: #1a2340; }
 [data-theme="light"] .cmp-select-lbl { color: rgba(0,0,0,.4); }
-[data-theme="light"] .cmp-select { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.14); color: #1a2340; }
+[data-theme="light"] .cmp-select { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.14); color: #1a2340; color-scheme: light; }
 [data-theme="light"] .cmp-card { background: rgba(0,0,0,.03); border-color: rgba(0,0,0,.08); }
 [data-theme="light"] .cmp-card--baseline { background: rgba(0,100,200,.05); border-color: rgba(0,100,200,.25); }
 [data-theme="light"] .cmp-card-date { color: rgba(0,0,0,.3); }
