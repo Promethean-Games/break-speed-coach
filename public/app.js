@@ -3123,15 +3123,20 @@ function computeRelativeBars(selArr, statsMap) {
     return out;
   }
 
-  const zoneBars    = normArr(zoneVals, true);
-  const avgBars     = normArr(avgVals, true);
-  const consistBars = normArr(consistVals, false); // lower stdDev → wider bar
+  // Speed bars: fixed scale 10–35 mph (absolute position, not relative to peers)
+  function mapSpeedToPercent(mph, min = 10, max = 35) {
+    if (mph == null) return null;
+    return Math.min(100, Math.max(0, (mph - min) / (max - min) * 100));
+  }
+
+  const consistBars = normArr(consistVals, false); // lower stdDev → wider bar (relative)
 
   selArr.forEach(p => {
+    const s = statsMap[p.id];
     bars[p.id] = {
-      zone:    zoneBars[p.id] ?? null,
-      avg:     avgBars[p.id] ?? null,
-      consist: consistBars[p.id] ?? null,
+      zone:    mapSpeedToPercent(s?.bestHighSpeed),
+      avg:     mapSpeedToPercent(s?.avgSpeed),
+      consist: null, // Control uses segmented tier meter — no generic bar
     };
   });
   return bars;
@@ -3323,7 +3328,7 @@ function renderCmpCards() {
     const metrics = document.createElement("div");
     metrics.className = "cmp-metrics";
 
-    function metricRow(lbl, valMph, deltaVal, barPct, higherBetter = true) {
+    function metricRow(lbl, valMph, deltaVal, barPct, higherBetter = true, barClass = "") {
       const row = document.createElement("div");
       row.className = "cmp-metric";
       const top = document.createElement("div");
@@ -3359,7 +3364,7 @@ function renderCmpCards() {
         const barWrap = document.createElement("div");
         barWrap.className = "cmp-bar-wrap";
         const bar = document.createElement("div");
-        bar.className = "cmp-bar";
+        bar.className = "cmp-bar" + (barClass ? " " + barClass : "");
         bar.style.width = Math.max(2, barPct) + "%";
         barWrap.appendChild(bar);
         row.appendChild(barWrap);
@@ -3374,8 +3379,8 @@ function renderCmpCards() {
       noData.innerHTML = '<span class="cmp-metric-val">No data yet</span>';
       metrics.appendChild(noData);
     } else {
-      metrics.appendChild(metricRow("Fastest Break", s.bestHighSpeed, d?.zone, b.zone, true));
-      metrics.appendChild(metricRow("Avg Speed",     s.avgSpeed,      d?.avg,  b.avg,  true));
+      metrics.appendChild(metricRow("Fastest Break", s.bestHighSpeed, d?.zone, b.zone, true, "cmp-bar--speed"));
+      metrics.appendChild(metricRow("Avg Speed",     s.avgSpeed,      d?.avg,  b.avg,  true, "cmp-bar--speed"));
       // Control tier row (replaces raw consistency number)
       const cdelta = d?.consist;
       metrics.appendChild(controlTierRow(s.consistencyStdDev, cdelta, b.consist, isBase));
