@@ -3944,6 +3944,16 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
   background: linear-gradient(90deg, #0094ff, #6c3cdc);
   transition: width .3s ease;
 }
+/* Speed power-meter variant — fixed 10–35 mph scale */
+.cmp-bar-wrap:has(.cmp-bar--speed) {
+  height: 7px;
+  background: rgba(255,255,255,.06);
+}
+.cmp-bar--speed {
+  background: linear-gradient(90deg, #1a55e0 0%, #0099ff 35%, #00d4ff 65%, #70ffd4 100%);
+  box-shadow: 0 0 5px rgba(0,210,255,.35);
+  transition: width .35s cubic-bezier(.4,0,.2,1);
+}
 .cmp-metric--no-data .cmp-metric-val { color: rgba(255,255,255,.3); }
 
 /* ── Control tier pill + segmented meter ─────────────────────────────────── */
