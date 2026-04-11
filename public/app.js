@@ -2697,7 +2697,15 @@ function applyProGating() {
     proConsistPreview.hidden = isPro ? true  : false;
   }
 
-  // Pro extras section (Challenge + Export) — show when profile loaded
+  // Pro extras section — toggle locked vs active cards based on Pro status
+  const challengeLocked  = document.getElementById("challengeLockedCard");
+  const challengeActive  = document.getElementById("challengeActiveCard");
+  const exportLocked     = document.getElementById("exportLockedCard");
+  const exportActive     = document.getElementById("exportActiveCard");
+  if (challengeLocked)  challengeLocked.hidden  = isPro;
+  if (challengeActive)  challengeActive.hidden  = !isPro;
+  if (exportLocked)     exportLocked.hidden     = isPro;
+  if (exportActive)     exportActive.hidden     = !isPro;
   proExtrasSection.hidden = activeProfile == null;
 }
 
@@ -2716,6 +2724,42 @@ function updateProGatingForDashboard(hasData) {
     proExtrasSection.hidden  = true;
   }
 }
+
+// ─── CSV Export ────────────────────────────────────────────────────────────
+function exportSessionsCsv() {
+  if (!historyData || historyData.length === 0) {
+    showToast("No sessions to export yet.");
+    return;
+  }
+  const unitLabel = settings.units || "mph";
+  const rows = [
+    ["Date", `Best Speed (${unitLabel})`, "Confidence", "Rack", "Attempts", "Source"],
+  ];
+  historyData.forEach(sess => {
+    const spd = sess.bestSpeed != null ? String(Math.round(convertSpeed(sess.bestSpeed) * 10) / 10) : "";
+    rows.push([
+      fmtDate(sess.createdAt),
+      spd,
+      sess.bestConf || "",
+      RACK_LABELS[sess.rackConfig] || sess.rackConfig || "",
+      String(sess.attemptCount || ""),
+      sess.sourceType || "",
+    ]);
+  });
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  a.download = `break-sessions-${activeProfile?.displayName?.replace(/\s+/g,"-") || "player"}-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast("CSV downloaded!");
+}
+
+document.getElementById("exportCsvBtn")?.addEventListener("click", exportSessionsCsv);
 
 // ─── Pro Modal Event Handlers ──────────────────────────────────────────────
 
