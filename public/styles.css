@@ -1395,6 +1395,8 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
+  flex-shrink: 0;   /* prevent flex parent from squishing cards */
+  min-height: 72px; /* backstop so card is never collapsed to a line */
 }
 .hist-card-header {
   display: flex;
@@ -1404,18 +1406,24 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
   cursor: pointer;
   user-select: none;
   position: relative;
+  min-height: 70px; /* guarantee both rows always have room */
+  box-sizing: border-box;
 }
 .hist-hdr-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex-shrink: 0;
+  min-height: 20px;
 }
 .hist-hdr-bottom {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
+  flex-shrink: 0;
+  min-height: 28px;
 }
 .hist-speed { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.1; }
 .hist-conf  { display: flex; }
