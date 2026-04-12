@@ -3142,6 +3142,10 @@ function computeRanks(selArr, statsMap) {
   byAvg.forEach((x, i)     => ranks[x.id].avg     = i + 1);
   byConsist.forEach((x, i) => ranks[x.id].consist = i + 1);
 
+  const bySessions = selArr.filter(p => statsMap[p.id] && statsMap[p.id].totalSessions != null)
+    .map(p => ({ id: p.id, v: statsMap[p.id].totalSessions })).sort((a, b) => b.v - a.v);
+  bySessions.forEach((x, i) => ranks[x.id].sessions = i + 1);
+
   return ranks;
 }
 
@@ -3337,124 +3341,215 @@ function renderCmpCards() {
   const deltas = computeBaselineDeltas(selArr, cmpStatsCache, cmpBaselineId);
   const bars   = computeRelativeBars(selArr, cmpStatsCache);
 
+  // Hero badge per sort mode — only awarded to rank #1
+  const heroBadgeDef = {
+    avgSpeed:    { rankKey: "avg",      label: "Top Avg",      emoji: "🎯" },
+    bestHigh:    { rankKey: "zone",     label: "Fastest",      emoji: "⚡" },
+    consistency: { rankKey: "consist",  label: "Best Control", emoji: "💎" },
+    sessions:    { rankKey: "sessions", label: "Most Active",  emoji: "📊" },
+  };
+  const heroDef = heroBadgeDef[cmpSortBy];
+
   selArr.forEach(p => {
-    const s       = cmpStatsCache[p.id];
-    const isBase  = p.id === cmpBaselineId;
-    const d       = deltas[p.id];
-    const b       = bars[p.id] || {};
-    const r       = ranks[p.id] || {};
+    const s      = cmpStatsCache[p.id];
+    const isBase = p.id === cmpBaselineId;
+    const d      = deltas[p.id];
+    const b      = bars[p.id] || {};
+    const r      = ranks[p.id] || {};
 
     const card = document.createElement("div");
     card.className = "cmp-card" + (isBase ? " cmp-card--baseline" : "");
 
-    // Header
+    // ── Header ────────────────────────────────────────────────────────────────
     const hdr = document.createElement("div");
     hdr.className = "cmp-card-header";
 
     const nameRow = document.createElement("div");
     nameRow.className = "cmp-card-name-row";
+
     const dot = document.createElement("span");
     dot.className = "cmp-card-dot";
     dot.style.background = p.colorAccent || "#aaa";
+    nameRow.appendChild(dot);
+
     const nameEl = document.createElement("span");
     nameEl.className = "cmp-card-name";
     nameEl.textContent = p.displayName;
-    nameRow.appendChild(dot);
     nameRow.appendChild(nameEl);
+
     if (isBase) {
-      const badge = document.createElement("span");
-      badge.className = "cmp-baseline-badge";
-      badge.textContent = "BASELINE";
-      nameRow.appendChild(badge);
+      const baseBadge = document.createElement("span");
+      baseBadge.className = "cmp-baseline-badge";
+      baseBadge.textContent = "BASELINE";
+      nameRow.appendChild(baseBadge);
     }
+
+    // Hero badge — only if #1 in the active sort category
+    if (heroDef && r[heroDef.rankKey] === 1) {
+      const heroBadgeEl = document.createElement("span");
+      heroBadgeEl.className = "cmp-hero-badge";
+      heroBadgeEl.textContent = heroDef.emoji + " " + heroDef.label;
+      nameRow.appendChild(heroBadgeEl);
+    }
+
     hdr.appendChild(nameRow);
 
-    const dateEl = document.createElement("div");
-    dateEl.className = "cmp-card-date";
-    dateEl.textContent = s ? `${s.totalSessions || 0} session${s.totalSessions !== 1 ? "s" : ""}` : "No data";
-    hdr.appendChild(dateEl);
+    const sessEl = document.createElement("span");
+    sessEl.className = "cmp-card-sessions";
+    const sc = s?.totalSessions || 0;
+    sessEl.textContent = sc + " " + (sc === 1 ? "session" : "sessions");
+    hdr.appendChild(sessEl);
+
     card.appendChild(hdr);
 
-    // Rank badges
-    const rankRow = document.createElement("div");
-    rankRow.className = "cmp-ranks";
-    const rankDefs = [
-      { lbl: "Fastest", key: "zone" },
-      { lbl: "Avg Spd", key: "avg" },
-      { lbl: "Control", key: "consist" },
-    ];
-    rankDefs.forEach(({ lbl, key }) => {
-      const rk = r[key];
-      if (rk == null) return;
-      const badge = document.createElement("span");
-      badge.className = `cmp-rank-badge${rk === 1 ? " cmp-rank-badge--1" : rk === 2 ? " cmp-rank-badge--2" : ""}`;
-      badge.textContent = `${lbl} #${rk}`;
-      rankRow.appendChild(badge);
-    });
-    card.appendChild(rankRow);
-
-    // Metrics
-    const metrics = document.createElement("div");
-    metrics.className = "cmp-metrics";
-
-    function metricRow(lbl, valMph, deltaVal, barPct, higherBetter = true, barClass = "") {
-      const row = document.createElement("div");
-      row.className = "cmp-metric";
-      const top = document.createElement("div");
-      top.className = "cmp-metric-row";
-
-      const lblEl = document.createElement("span");
-      lblEl.className = "cmp-metric-lbl";
-      lblEl.textContent = lbl;
-      top.appendChild(lblEl);
-
-      const valWrap = document.createElement("div");
-      valWrap.className = "cmp-metric-val-wrap";
-
-      const valEl = document.createElement("span");
-      valEl.className = "cmp-metric-val";
-      valEl.textContent = valMph != null ? fmtStat(valMph) : "—";
-      valWrap.appendChild(valEl);
-
-      if (!isBase && deltaVal != null) {
-        const deltaEl = document.createElement("span");
-        const isBetter = higherBetter ? deltaVal > 0 : deltaVal < 0;
-        const isNeutral = Math.abs(deltaVal) < 0.05;
-        deltaEl.className = "cmp-delta" + (isNeutral ? " cmp-delta--zero" : isBetter ? " cmp-delta--pos" : " cmp-delta--neg");
-        const displayDelta = convertSpeed(Math.abs(deltaVal)).toFixed(1);
-        deltaEl.textContent = isNeutral ? "=" : (deltaVal > 0 ? "+" : "−") + displayDelta + " " + settings.units;
-        valWrap.appendChild(deltaEl);
-      }
-
-      top.appendChild(valWrap);
-      row.appendChild(top);
-
-      if (barPct != null) {
-        const barWrap = document.createElement("div");
-        barWrap.className = "cmp-bar-wrap";
-        const bar = document.createElement("div");
-        bar.className = "cmp-bar" + (barClass ? " " + barClass : "");
-        bar.style.width = Math.max(2, barPct) + "%";
-        barWrap.appendChild(bar);
-        row.appendChild(barWrap);
-      }
-
-      return row;
-    }
-
+    // No-data state
     if (!s || s.totalAttempts === 0) {
       const noData = document.createElement("div");
-      noData.className = "cmp-metric cmp-metric--no-data";
-      noData.innerHTML = '<span class="cmp-metric-val">No data yet</span>';
-      metrics.appendChild(noData);
-    } else {
-      metrics.appendChild(metricRow("Fastest Break", s.allTimeTopSpeed ?? s.bestHighSpeed, d?.zone, b.zone, true, "cmp-bar--speed"));
-      metrics.appendChild(metricRow("Avg Speed",     s.avgSpeed,      d?.avg,  b.avg,  true, "cmp-bar--speed"));
-      // Control tier row (replaces raw consistency number)
-      const cdelta = d?.consist;
-      metrics.appendChild(controlTierRow(s.consistencyStdDev, cdelta, b.consist, isBase));
+      noData.className = "cmp-no-data";
+      noData.textContent = "No data yet";
+      card.appendChild(noData);
+      cmpCardsEl.appendChild(card);
+      return;
     }
-    card.appendChild(metrics);
+
+    // ── Featured body — one big stat based on sort mode ───────────────────────
+    const body = document.createElement("div");
+    body.className = "cmp-featured";
+
+    function featDeltaEl(rawDelta, higherBetter = true) {
+      if (isBase || rawDelta == null) return null;
+      const el = document.createElement("div");
+      const isNeutral = Math.abs(rawDelta) < 0.05;
+      const isBetter  = higherBetter ? rawDelta > 0 : rawDelta < 0;
+      el.className = "cmp-featured-delta" +
+        (isNeutral ? "" : isBetter ? " cmp-featured-delta--pos" : " cmp-featured-delta--neg");
+      const disp = convertSpeed(Math.abs(rawDelta)).toFixed(1);
+      el.textContent = isNeutral
+        ? "Same as baseline"
+        : (rawDelta > 0 ? "+" : "−") + disp + " " + settings.units + " vs baseline";
+      return el;
+    }
+
+    function speedFeatured(mph, lbl, barPct, rawDelta) {
+      const lblEl = document.createElement("div");
+      lblEl.className = "cmp-featured-lbl";
+      lblEl.textContent = lbl;
+      body.appendChild(lblEl);
+
+      const numEl = document.createElement("div");
+      numEl.className = "cmp-featured-num";
+      numEl.textContent = mph != null ? fmtStat(mph) : "—";
+      body.appendChild(numEl);
+
+      if (barPct != null) {
+        const bw = document.createElement("div");
+        bw.className = "cmp-bar-wrap cmp-featured-bar";
+        const b2 = document.createElement("div");
+        b2.className = "cmp-bar cmp-bar--speed";
+        b2.style.width = Math.max(2, barPct) + "%";
+        bw.appendChild(b2);
+        body.appendChild(bw);
+      }
+
+      const de = featDeltaEl(rawDelta, true);
+      if (de) body.appendChild(de);
+    }
+
+    if (cmpSortBy === "avgSpeed") {
+      speedFeatured(s.avgSpeed, "Avg Speed", b.avg, d?.avg);
+    } else if (cmpSortBy === "bestHigh") {
+      speedFeatured(s.allTimeTopSpeed ?? s.bestHighSpeed, "Fastest Break", b.zone, d?.zone);
+    } else if (cmpSortBy === "consistency") {
+      body.classList.add("cmp-featured--control");
+      const tier = controlTier(s.consistencyStdDev);
+      const lblEl = document.createElement("div");
+      lblEl.className = "cmp-featured-lbl";
+      lblEl.textContent = "Control";
+      body.appendChild(lblEl);
+      if (tier) {
+        const tierName = document.createElement("div");
+        tierName.className = "cmp-featured-tier";
+        tierName.textContent = tier.label;
+        tierName.style.color = tier.color;
+        body.appendChild(tierName);
+
+        const meter = document.createElement("div");
+        meter.className = "ctrl-meter cmp-featured-meter";
+        for (let i = 1; i <= 5; i++) {
+          const seg = document.createElement("span");
+          seg.className = "ctrl-seg" + (i <= tier.level ? " ctrl-seg--on" : "");
+          if (i <= tier.level) seg.style.background = tier.color;
+          meter.appendChild(seg);
+        }
+        body.appendChild(meter);
+
+        const de = featDeltaEl(d?.consist, false);
+        if (de) body.appendChild(de);
+      }
+    } else if (cmpSortBy === "sessions") {
+      const lblEl = document.createElement("div");
+      lblEl.className = "cmp-featured-lbl";
+      lblEl.textContent = "Sessions Played";
+      body.appendChild(lblEl);
+      const numEl = document.createElement("div");
+      numEl.className = "cmp-featured-num";
+      numEl.textContent = s.totalSessions ?? "—";
+      body.appendChild(numEl);
+    }
+
+    card.appendChild(body);
+
+    // ── Footer: two compact supporting stats ──────────────────────────────────
+    const footer = document.createElement("div");
+    footer.className = "cmp-footer";
+
+    function supportStat(lbl, valStr, colorStyle) {
+      const el  = document.createElement("div");
+      el.className = "cmp-support-stat";
+      const lEl = document.createElement("div");
+      lEl.className = "cmp-support-lbl";
+      lEl.textContent = lbl;
+      const vEl = document.createElement("div");
+      vEl.className = "cmp-support-val";
+      if (colorStyle) vEl.style.color = colorStyle;
+      vEl.textContent = valStr || "—";
+      el.appendChild(lEl);
+      el.appendChild(vEl);
+      return el;
+    }
+
+    function addDivider() {
+      const div = document.createElement("div");
+      div.className = "cmp-footer-divider";
+      footer.appendChild(div);
+    }
+
+    const ctrlTierData = controlTier(s.consistencyStdDev);
+    const ctrlTxt   = ctrlTierData ? ctrlTierData.label : "—";
+    const ctrlColor = ctrlTierData ? ctrlTierData.color : null;
+    const fastTxt   = (s.allTimeTopSpeed ?? s.bestHighSpeed) != null
+      ? fmtStat(s.allTimeTopSpeed ?? s.bestHighSpeed) : "—";
+    const avgTxt    = s.avgSpeed != null ? fmtStat(s.avgSpeed) : "—";
+
+    if (cmpSortBy === "avgSpeed") {
+      footer.appendChild(supportStat("Fastest Break", fastTxt, null));
+      addDivider();
+      footer.appendChild(supportStat("Control", ctrlTxt, ctrlColor));
+    } else if (cmpSortBy === "bestHigh") {
+      footer.appendChild(supportStat("Avg Speed", avgTxt, null));
+      addDivider();
+      footer.appendChild(supportStat("Control", ctrlTxt, ctrlColor));
+    } else if (cmpSortBy === "consistency") {
+      footer.appendChild(supportStat("Avg Speed", avgTxt, null));
+      addDivider();
+      footer.appendChild(supportStat("Fastest Break", fastTxt, null));
+    } else if (cmpSortBy === "sessions") {
+      footer.appendChild(supportStat("Avg Speed", avgTxt, null));
+      addDivider();
+      footer.appendChild(supportStat("Fastest Break", fastTxt, null));
+    }
+
+    card.appendChild(footer);
     cmpCardsEl.appendChild(card);
   });
 }
