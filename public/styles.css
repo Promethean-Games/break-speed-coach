@@ -680,6 +680,55 @@ input[type="file"] { display: none; }
   color: var(--text-dim);
 }
 
+/* Speed tier pill */
+.results-tier-pill {
+  display: inline-block;
+  padding: 5px 16px;
+  border-radius: 20px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: .03em;
+  color: var(--tier-color, #6cb6e0);
+  background: color-mix(in srgb, var(--tier-color, #6cb6e0) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tier-color, #6cb6e0) 30%, transparent);
+  margin-bottom: 2px;
+}
+
+/* Interpretation line */
+.results-interp {
+  font-size: 14px;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* Next-tier distance */
+.results-next-tier {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  text-align: center;
+  opacity: .85;
+}
+
+/* Try Again CTA */
+.btn-try-again {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  cursor: pointer;
+  transition: opacity .15s, transform .1s;
+}
+.btn-try-again:hover  { opacity: .88; }
+.btn-try-again:active { transform: scale(.98); }
+
 /* Stats row */
 .stats-row {
   display: flex;
