@@ -829,6 +829,24 @@ input[type="file"] { display: none; }
 .tr-name  { flex: 1; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); }
 .tr-speed { font-size: 18px; font-weight: 800; letter-spacing: -.01em; }
 .tr-label { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+.tr-tag-btn {
+  flex-shrink: 0;
+  margin-left: 6px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 10px;
+  cursor: pointer;
+  opacity: .8;
+  transition: opacity .15s, background .15s, color .15s;
+}
+.tr-tag-btn:hover  { opacity: 1; background: var(--accent); color: #000; }
+.tr-tag-btn:active { transform: scale(.95); }
 
 .tier-card-low .tier-card-header { opacity: .6; }
 .low-note {
