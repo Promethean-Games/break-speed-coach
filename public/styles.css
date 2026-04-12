@@ -3816,20 +3816,19 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
 #compareView { padding: 0 0 16px; }
 #personalView { padding: 0; }
 
+/* Winner strip — flat, compact, scannable */
 .cmp-winner-strip {
   display: flex;
-  gap: 0;
-  margin: 12px 0 10px;
-  border-radius: 12px;
+  margin: 10px 0 8px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.03);
   overflow: hidden;
-  border: 1px solid rgba(0,148,255,.15);
 }
 .cmp-winner-item {
   flex: 1;
   text-align: center;
-  padding: 10px 6px;
-  background: rgba(0,148,255,.06);
-  border-right: 1px solid rgba(0,148,255,.1);
+  padding: 8px 4px;
+  border-right: 1px solid rgba(255,255,255,.06);
 }
 .cmp-winner-item:last-child { border-right: none; }
 .cmp-winner-lbl {
@@ -3837,23 +3836,24 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
   font-weight: 700;
   letter-spacing: .5px;
   text-transform: uppercase;
-  color: rgba(255,255,255,.4);
-  margin-bottom: 4px;
+  color: rgba(255,255,255,.28);
+  margin-bottom: 3px;
 }
 .cmp-winner-val {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
   color: var(--text);
   line-height: 1.2;
 }
-.cmp-winner-val--tie { font-size: 11px; }
+.cmp-winner-val--tie { font-size: 10px; }
 
-.cmp-controls { margin-bottom: 12px; }
+/* Profile selection pills */
+.cmp-controls { margin-bottom: 10px; }
 .cmp-pills-row {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 .cmp-pill {
   display: flex;
@@ -3861,9 +3861,9 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
   gap: 5px;
   padding: 5px 10px;
   border-radius: 20px;
-  border: 1.5px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.06);
-  color: rgba(255,255,255,.6);
+  border: 1.5px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.05);
+  color: rgba(255,255,255,.5);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -3881,6 +3881,7 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
 }
 .cmp-pill-check { font-size: 10px; margin-left: 2px; }
 
+/* Baseline + sort selects — visually quiet */
 .cmp-selects-row {
   display: flex;
   gap: 8px;
@@ -3889,23 +3890,23 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 .cmp-select-lbl {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: .4px;
   text-transform: uppercase;
-  color: rgba(255,255,255,.4);
+  color: rgba(255,255,255,.28);
 }
 .cmp-select {
   width: 100%;
-  padding: 8px 10px;
+  padding: 7px 10px;
   border-radius: 9px;
-  border: 1.5px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.04);
   color: var(--text);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   outline: none;
   cursor: pointer;
@@ -3925,119 +3926,138 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
-/* Comparison card */
+/* ── Player card shell ───────────────────────────────────────────────────── */
 .cmp-card {
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.09);
   background: rgba(255,255,255,.04);
   padding: 14px 14px 12px;
   position: relative;
   overflow: hidden;
+  flex-shrink: 0;
 }
 .cmp-card--baseline {
-  border-color: rgba(0,148,255,.35);
+  border-color: rgba(0,148,255,.3);
   background: rgba(0,148,255,.05);
 }
+
+/* Header row */
 .cmp-card-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 12px;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 .cmp-card-name-row {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
 }
 .cmp-card-dot {
-  width: 10px; height: 10px;
+  width: 12px; height: 12px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 .cmp-card-name {
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 800;
   color: var(--text);
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
 }
 .cmp-baseline-badge {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: .5px;
-  background: rgba(0,148,255,.2);
-  border: 1px solid rgba(0,148,255,.4);
+  background: rgba(0,148,255,.18);
+  border: 1px solid rgba(0,148,255,.35);
   color: var(--accent);
   border-radius: 5px;
   padding: 2px 6px;
   text-transform: uppercase;
+  flex-shrink: 0;
 }
-.cmp-card-date {
-  font-size: 11px;
-  color: rgba(255,255,255,.35);
-}
-.cmp-ranks {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
-.cmp-rank-badge {
+/* Hero badge — single #1 medal, only shown in active sort category */
+.cmp-hero-badge {
   font-size: 10px;
   font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: rgba(255,255,255,.07);
-  color: rgba(255,255,255,.55);
-}
-.cmp-rank-badge--1 {
+  padding: 2px 8px;
+  border-radius: 20px;
   background: rgba(255,200,0,.15);
   color: #ffc800;
+  border: 1px solid rgba(255,200,0,.25);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
-.cmp-rank-badge--2 {
-  background: rgba(200,210,220,.1);
-  color: #c8d2dc;
-}
-.cmp-metrics {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-.cmp-metric {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.cmp-metric-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.cmp-metric-lbl {
+.cmp-card-sessions {
   font-size: 11px;
-  color: rgba(255,255,255,.45);
-  font-weight: 600;
+  color: rgba(255,255,255,.28);
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding-top: 3px;
 }
-.cmp-metric-val-wrap {
-  display: flex;
-  align-items: center;
-  gap: 7px;
+
+/* ── Featured body ───────────────────────────────────────────────────────── */
+.cmp-featured {
+  margin-bottom: 14px;
 }
-.cmp-metric-val {
-  font-size: 14px;
+.cmp-featured-lbl {
+  font-size: 10px;
   font-weight: 700;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.32);
+  margin-bottom: 4px;
+}
+.cmp-featured-num {
+  font-size: 34px;
+  font-weight: 800;
   color: var(--text);
+  line-height: 1;
+  margin-bottom: 8px;
+  letter-spacing: -.01em;
 }
-.cmp-delta {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 5px;
+.cmp-featured-tier {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 10px;
+  letter-spacing: -.01em;
 }
-.cmp-delta--pos { background: rgba(0,200,80,.12); color: #00c850; }
-.cmp-delta--neg { background: rgba(255,60,60,.12); color: #ff4040; }
-.cmp-delta--zero { background: rgba(255,255,255,.07); color: rgba(255,255,255,.4); }
+/* Featured speed bar — taller than support bars */
+.cmp-featured-bar {
+  height: 8px !important;
+  background: rgba(255,255,255,.06) !important;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.cmp-featured-meter {
+  margin-bottom: 8px;
+}
+.cmp-featured-meter .ctrl-seg {
+  height: 6px;
+}
+.cmp-featured-delta {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,.35);
+  margin-top: 2px;
+}
+.cmp-featured-delta--pos { color: #00c850; }
+.cmp-featured-delta--neg { color: #ff5050; }
+
+/* Speed bar used in featured slot */
 .cmp-bar-wrap {
   height: 4px;
   border-radius: 4px;
@@ -4050,17 +4070,52 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
   background: linear-gradient(90deg, #0094ff, #6c3cdc);
   transition: width .3s ease;
 }
-/* Speed power-meter variant — fixed 10–35 mph scale */
-.cmp-bar-wrap:has(.cmp-bar--speed) {
-  height: 7px;
-  background: rgba(255,255,255,.06);
-}
 .cmp-bar--speed {
   background: linear-gradient(90deg, #1a55e0 0%, #0099ff 35%, #00d4ff 65%, #70ffd4 100%);
   box-shadow: 0 0 5px rgba(0,210,255,.35);
   transition: width .35s cubic-bezier(.4,0,.2,1);
 }
-.cmp-metric--no-data .cmp-metric-val { color: rgba(255,255,255,.3); }
+
+/* ── Footer: two compact supporting stats ────────────────────────────────── */
+.cmp-footer {
+  display: flex;
+  align-items: stretch;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+.cmp-support-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0 10px;
+}
+.cmp-support-stat:first-child { padding-left: 0; }
+.cmp-support-stat:last-child  { padding-right: 0; }
+.cmp-support-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.28);
+}
+.cmp-support-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+.cmp-footer-divider {
+  width: 1px;
+  background: rgba(255,255,255,.07);
+  flex-shrink: 0;
+  align-self: stretch;
+}
+.cmp-no-data {
+  font-size: 13px;
+  color: rgba(255,255,255,.3);
+  padding: 6px 0 4px;
+}
 
 /* ── Control tier pill + segmented meter ─────────────────────────────────── */
 .ctrl-tier-pill {
@@ -4093,20 +4148,24 @@ details[open] > .diag-summary { border-bottom: 1px solid var(--border); }
 [data-theme="light"] .ctrl-seg { background: rgba(0,0,0,.1); }
 [data-theme="light"] .ctrl-seg--on { opacity: 1; }
 
-[data-theme="light"] .cmp-winner-lbl { color: rgba(0,0,0,.4); }
-[data-theme="light"] .cmp-winner-item { background: rgba(0,100,200,.05); border-color: rgba(0,100,200,.1); }
-[data-theme="light"] .cmp-winner-strip { border-color: rgba(0,100,200,.15); }
+[data-theme="light"] .cmp-winner-strip { background: rgba(0,0,0,.03); }
+[data-theme="light"] .cmp-winner-item { border-color: rgba(0,0,0,.06); }
+[data-theme="light"] .cmp-winner-lbl { color: rgba(0,0,0,.35); }
 [data-theme="light"] .cmp-pill { background: rgba(0,0,0,.05); border-color: rgba(0,0,0,.1); color: rgba(0,0,0,.5); }
 [data-theme="light"] .cmp-pill.selected { background: rgba(0,100,200,.1); border-color: #0060cc; color: #1a2340; }
-[data-theme="light"] .cmp-select-lbl { color: rgba(0,0,0,.4); }
-[data-theme="light"] .cmp-select { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.14); color: #1a2340; color-scheme: light; }
-[data-theme="light"] .cmp-card { background: rgba(0,0,0,.03); border-color: rgba(0,0,0,.08); }
-[data-theme="light"] .cmp-card--baseline { background: rgba(0,100,200,.05); border-color: rgba(0,100,200,.25); }
-[data-theme="light"] .cmp-card-date { color: rgba(0,0,0,.3); }
-[data-theme="light"] .cmp-rank-badge { background: rgba(0,0,0,.06); color: rgba(0,0,0,.5); }
-[data-theme="light"] .cmp-metric-lbl { color: rgba(0,0,0,.45); }
+[data-theme="light"] .cmp-select-lbl { color: rgba(0,0,0,.35); }
+[data-theme="light"] .cmp-select { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.1); color: #1a2340; color-scheme: light; }
+[data-theme="light"] .cmp-card { background: rgba(0,0,0,.03); border-color: rgba(0,0,0,.07); }
+[data-theme="light"] .cmp-card--baseline { background: rgba(0,100,200,.05); border-color: rgba(0,100,200,.22); }
+[data-theme="light"] .cmp-card-sessions { color: rgba(0,0,0,.28); }
+[data-theme="light"] .cmp-featured-lbl { color: rgba(0,0,0,.35); }
+[data-theme="light"] .cmp-support-lbl { color: rgba(0,0,0,.35); }
+[data-theme="light"] .cmp-footer { border-color: rgba(0,0,0,.07); }
+[data-theme="light"] .cmp-footer-divider { background: rgba(0,0,0,.07); }
+[data-theme="light"] .cmp-featured-delta { color: rgba(0,0,0,.35); }
 [data-theme="light"] .cmp-bar-wrap { background: rgba(0,0,0,.07); }
 [data-theme="light"] .cmp-empty { color: rgba(0,0,0,.3); }
+[data-theme="light"] .cmp-no-data { color: rgba(0,0,0,.3); }
 
 /* ── Pro Active Cards (unlocked feature state) ───────────────────────────── */
 .pro-active-card {
