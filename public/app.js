@@ -35,6 +35,28 @@ const OUTCOME_CONFIG = {
 const SPEED_METER_MIN_MPH = 10;
 const SPEED_METER_MAX_MPH = 35;
 
+// ─── Speed Tier System ────────────────────────────────────────────────────────
+// Canonical thresholds in mph; display conversion happens only at render time.
+const SPEED_TIERS = [
+  { id: "soft",     min: 0,        max: 14, label: "Soft Break",    color: "#8fa8c8", interp: "More touch than force right now."              },
+  { id: "controlled", min: 14,     max: 17, label: "Controlled",    color: "#6cb6e0", interp: "Stable speed, but room to push higher."        },
+  { id: "league",   min: 17,       max: 20, label: "League Ready",  color: "#4dd0a0", interp: "Solid, usable break speed."                    },
+  { id: "power",    min: 20,       max: 23, label: "Power Breaker", color: "#f5a623", interp: "Serious snap and pressure on the rack."         },
+  { id: "crusher",  min: 23, max: Infinity, label: "Rack Crusher",  color: "#ff5e5e", interp: "Top-end power — now keep it repeatable."        },
+];
+
+function getSpeedTier(mph) {
+  return SPEED_TIERS.find(t => mph >= t.min && mph < t.max) ?? SPEED_TIERS[0];
+}
+function getNextTier(mph) {
+  const idx = SPEED_TIERS.indexOf(getSpeedTier(mph));
+  return idx < SPEED_TIERS.length - 1 ? SPEED_TIERS[idx + 1] : null;
+}
+function getDistanceToNextTier(mph) {
+  const next = getNextTier(mph);
+  return next ? next.min - mph : null;
+}
+
 function loadSettings() {
   try {
     const s = JSON.parse(localStorage.getItem("bsa_settings") || "{}");
@@ -201,6 +223,10 @@ const resultsBestLabel= document.getElementById("resultsBestLabel");
 const resultsBestBadge= document.getElementById("resultsBestBadge");
 const resultsSavedTag = document.getElementById("resultsSavedTag");
 const resultsUnit     = document.getElementById("resultsUnit");
+const resultsTierPill = document.getElementById("resultsTierPill");
+const resultsInterp   = document.getElementById("resultsInterp");
+const resultsNextTier = document.getElementById("resultsNextTier");
+const tryAgainBtn     = document.getElementById("tryAgainBtn");
 const statsAvg        = document.getElementById("statsAvg");
 const statsAvgSub     = document.getElementById("statsAvgSub");
 const statsConsistency= document.getElementById("statsConsistency");
@@ -1122,6 +1148,13 @@ newSessionBtn.addEventListener("click", () => {
   showScreen(screenHero);
 });
 
+tryAgainBtn.addEventListener("click", () => {
+  recordings = []; selectedFiles = [];
+  renderSavedList(); renderFileList();
+  updateAnalyzeCTA();
+  showScreen(screenHero);
+});
+
 // ─── Upload file logic ────────────────────────────────────────────────────────
 function formatBytes(b) {
   if (b < 1024) return b + " B";
@@ -1295,10 +1328,35 @@ function renderResults(data) {
     animateSpeed(resultsBestSpeed, best.speedMph);
     resultsBestLabel.textContent = session.bestBreak ? "Best Break" : "Top Estimate";
     resultsBestBadge.innerHTML = badge(best.confidence);
+
+    // Speed tier
+    const tier = getSpeedTier(best.speedMph);
+    resultsTierPill.textContent = tier.label;
+    resultsTierPill.style.setProperty("--tier-color", tier.color);
+    resultsTierPill.hidden = false;
+
+    // Interpretation
+    resultsInterp.textContent = tier.interp;
+    resultsInterp.hidden = false;
+
+    // Distance to next tier
+    const distMph = getDistanceToNextTier(best.speedMph);
+    if (distMph != null) {
+      const distDisplay = convertSpeed(distMph).toFixed(1);
+      const nextTier = getNextTier(best.speedMph);
+      resultsNextTier.textContent = `+${distDisplay} ${settings.units} to ${nextTier.label}`;
+      resultsNextTier.hidden = false;
+    } else {
+      resultsNextTier.textContent = "Top tier reached — now prove you can repeat it";
+      resultsNextTier.hidden = false;
+    }
   } else {
     resultsBestSpeed.textContent = "—";
     resultsBestLabel.textContent = "No high-confidence reading";
     resultsBestBadge.innerHTML = "";
+    resultsTierPill.hidden = true;
+    resultsInterp.hidden = true;
+    resultsNextTier.hidden = true;
   }
 
   // Stats
