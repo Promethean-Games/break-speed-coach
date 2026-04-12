@@ -133,12 +133,17 @@ let savedAutoAdvance = null;
 
 // Outcome tag sheet state
 let tagSessionId    = null;   // session to tag
+let tagAttemptId    = null;   // attempt ID when tagging per-attempt (null = session-level)
 let tagProfileId    = null;   // profile that owns the session
 let tagRackConfig   = null;   // rackConfig for money-ball label
 let tagBestSpeed    = null;   // best speed for subtitle display
 let tagBestConf     = null;   // confidence of best reading
 let tagSheetTimer   = null;   // delayed show timer
 let tagToggles      = { scratched: false, objectBallPocketed: false, moneyBallOnBreak: false };
+
+// Per-attempt tagging state (populated after successful analysis with auto-save)
+let currentSessionId       = null;  // session ID of the most recent saved session
+let currentSessionAttempts = [];    // [{id, filename}] from the most recent saved session
 
 // History state
 let historyData    = [];
@@ -1239,6 +1244,9 @@ async function runAnalysis(source) {
       throw new Error(e.error || "Server error");
     }
     const data = await resp.json();
+    // Store attempt IDs before rendering so tier card tag buttons can use them
+    currentSessionId       = data.savedSession?.sessionId ?? null;
+    currentSessionAttempts = data.savedSession?.attempts  ?? [];
     renderResults(data);
     showScreen(screenResults);
     histAccordionLoaded = false; // history needs refresh after new session
@@ -1415,11 +1423,25 @@ function renderResults(data) {
       const row = document.createElement("div");
       row.className = "tier-row";
       const flagHtml = f.speedFlag ? ` <span class="badge badge-flag">${f.speedFlag.replace(/_/g," ")}</span>` : "";
+      // Look up saved attempt ID for per-attempt tagging (only available right after analysis)
+      const savedAtm = currentSessionId
+        ? currentSessionAttempts.find(a => a.filename === f.filename)
+        : null;
+      const tagBtnHtml = savedAtm
+        ? `<button class="tr-tag-btn" aria-label="Tag this break">Tag</button>`
+        : "";
       row.innerHTML =
         `<span class="tr-rank">${globalRank}</span>` +
         `<span class="tr-name" title="${f.filename}">${f.filename}</span>` +
         `<span class="tr-speed">${fmtSpeed(f.speedMph, f.confidence)}</span>` +
-        `<span class="tr-label">${info.coach}${flagHtml}</span>`;
+        `<span class="tr-label">${info.coach}${flagHtml}</span>` +
+        tagBtnHtml;
+      if (savedAtm) {
+        row.querySelector(".tr-tag-btn").addEventListener("click", e => {
+          e.stopPropagation();
+          showTagSheet(currentSessionId, activeProfile?.id, setupState.rackConfig, f.speedMph ?? null, f.confidence, savedAtm.id);
+        });
+      }
       body.appendChild(row);
       globalRank++;
     });
@@ -1805,8 +1827,9 @@ function renderTagRows(rackConfig) {
   });
 }
 
-function showTagSheet(sessionId, profileId, rackConfig, bestSpeed, bestConf) {
+function showTagSheet(sessionId, profileId, rackConfig, bestSpeed, bestConf, attemptId = null) {
   tagSessionId  = sessionId;
+  tagAttemptId  = attemptId;
   tagProfileId  = profileId;
   tagRackConfig = rackConfig;
   tagBestSpeed  = bestSpeed;
@@ -1832,19 +1855,30 @@ function hideTagSheet() {
   if (tagOverlay) tagOverlay.hidden = true;
   clearTimeout(tagSheetTimer);
   tagSessionId = null;
+  tagAttemptId = null;
 }
 
 async function saveOutcomeTags() {
   if (!tagSessionId || !tagProfileId) return;
   try {
     if (tagSaveBtn) { tagSaveBtn.disabled = true; tagSaveBtn.textContent = "Saving…"; }
-    await apiPatch("/sessions/" + tagSessionId + "/outcome", {
-      profileId:          tagProfileId,
-      scratched:          tagToggles.scratched,
-      objectBallPocketed: tagToggles.objectBallPocketed,
-      moneyBallOnBreak:   tagToggles.moneyBallOnBreak,
-      gameMode:           tagRackConfig,
-    });
+    if (tagAttemptId) {
+      // Per-attempt tag — no profileId required in body
+      await apiPatch("/sessions/" + tagSessionId + "/attempts/" + tagAttemptId + "/outcome", {
+        scratched:          tagToggles.scratched,
+        objectBallPocketed: tagToggles.objectBallPocketed,
+        moneyBallOnBreak:   tagToggles.moneyBallOnBreak,
+      });
+    } else {
+      // Session-level tag
+      await apiPatch("/sessions/" + tagSessionId + "/outcome", {
+        profileId:          tagProfileId,
+        scratched:          tagToggles.scratched,
+        objectBallPocketed: tagToggles.objectBallPocketed,
+        moneyBallOnBreak:   tagToggles.moneyBallOnBreak,
+        gameMode:           tagRackConfig,
+      });
+    }
     showToast("Break tagged ✓");
     hideTagSheet();
   } catch (err) {
