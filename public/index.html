@@ -52,26 +52,11 @@
         <button class="settings-pro-btn" id="settingsProBtn">Upgrade to Pro</button>
       </div>
 
-      <div class="settings-section">
-        <div class="settings-label">Table Size</div>
-        <div class="settings-opts" id="tableSizeOpts">
-          <button class="opt-btn" data-value="7ft">7 ft</button>
-          <button class="opt-btn" data-value="8ft">8 ft</button>
-          <button class="opt-btn" data-value="9ft">9 ft</button>
-          <button class="opt-btn" data-value="10ft">10 ft</button>
-          <button class="opt-btn" data-value="custom">Custom</button>
-        </div>
-        <div class="settings-custom-table" id="settingsCustomTable" hidden>
-          <div class="settings-custom-row">
-            <label class="settings-custom-lbl">Length (in)</label>
-            <input class="settings-num-input" id="settingsTableLength" type="number" min="70" max="120" step="1">
-          </div>
-          <div class="settings-custom-row">
-            <label class="settings-custom-lbl">Width (in)</label>
-            <input class="settings-num-input" id="settingsTableWidth" type="number" min="35" max="60" step="1">
-          </div>
-        </div>
-      </div>
+      <!-- Add to Home Screen -->
+      <button class="settings-a2hs-btn" id="a2hsBtn" hidden>
+        <span class="settings-a2hs-icon">⊕</span>
+        Add to Home Screen
+      </button>
 
       <div class="settings-section">
         <div class="settings-label">Theme</div>
@@ -652,11 +637,16 @@
         <div class="results-speed" id="resultsBestSpeed">—</div>
         <div class="results-unit" id="resultsUnit">mph</div>
       </div>
+      <div class="results-tier-pill" id="resultsTierPill" hidden></div>
       <div class="results-label-row">
         <span class="results-lbl" id="resultsBestLabel">Best Break</span>
         <span id="resultsBestBadge"></span>
       </div>
+      <div class="results-interp" id="resultsInterp" hidden></div>
+      <div class="results-next-tier" id="resultsNextTier" hidden></div>
     </div>
+
+    <button class="btn-try-again" id="tryAgainBtn">↺  Try Again</button>
 
     <div class="stats-row">
       <div class="stat-block">
